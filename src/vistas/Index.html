@@ -7,6 +7,8 @@
   <meta name="theme-color" content="#F0F7FC">
   <title>Empiria · Gestión de investigación</title>
   <?!= include('Estilos'); ?>
+  <!-- Versión fija; defer permite registrar el store antes del inicio de Alpine. -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.5/dist/cdn.min.js"></script>
   <script>
     // Tema antes de pintar: preferencia guardada o, en su defecto, la del sistema.
     (function () {
@@ -19,14 +21,14 @@
 
 </head>
 <!-- FIN: Metadatos y recursos -->
-<body class="text-slate-800 antialiased h-screen flex overflow-hidden">
+<body x-data :data-vista-activa="$store.navegacion.vistaActual" class="text-slate-800 antialiased h-screen flex overflow-hidden">
 
   <?!= include('Login'); ?>
 
   <!-- 2. DASHBOARD PRINCIPAL -->
   
 <!-- INICIO: app-dashboard -->
-  <div id="app-dashboard" class="hidden flex-1 flex h-screen overflow-hidden w-full">
+  <div id="app-dashboard" x-cloak x-show="$store.navegacion.sesionIniciada" class="flex-1 flex h-screen overflow-hidden w-full">
 
     
 <!-- INICIO: Navegación principal -->
@@ -34,7 +36,7 @@
       <a href="#contenido-principal" class="saltar-contenido">Saltar al contenido</a>
       <div class="p-6">
         <div class="sidebar-cabecera">
-        <a href="#" onclick="switchTab('inicio'); return false;" class="marca-sgiu" aria-label="Empiria, ir al inicio">
+        <a href="#" @click.prevent="$store.navegacion.navegar('inicio')" class="marca-sgiu" aria-label="Empiria, ir al inicio">
           <span class="marca-icono"><?!= include('Marca'); ?></span>
           <span><strong translate="no">Empiria</strong><small>Gestión de investigación</small></span>
         </a>
@@ -47,32 +49,32 @@
         
 <!-- INICIO: nav-menu -->
         <nav class="space-y-2" id="nav-menu">
-          <button onclick="switchTab('inicio')" id="btn-inicio" aria-label="Inicio" title="Inicio" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+          <button @click="$store.navegacion.navegar('inicio')" id="btn-inicio" aria-label="Inicio" title="Inicio" :aria-current="$store.navegacion.vistaActual === 'inicio' ? 'page' : null" :class="{ 'nav-activo font-semibold': $store.navegacion.vistaActual === 'inicio', 'text-slate-600 hover:bg-slate-100 hover:text-blue-700': $store.navegacion.vistaActual !== 'inicio' }" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all">
             <i class="fa-solid fa-house w-5 text-center"></i>
             <span class="font-medium text-sm">Inicio</span>
           </button>
 
-          <button onclick="switchTab('ciclo')" id="btn-ciclo" aria-label="Ciclo" title="Ciclo" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+          <button @click="$store.navegacion.navegar('ciclo')" id="btn-ciclo" aria-label="Ciclo" title="Ciclo" :aria-current="$store.navegacion.vistaActual === 'ciclo' ? 'page' : null" :class="{ 'nav-activo font-semibold': $store.navegacion.vistaActual === 'ciclo', 'text-slate-600 hover:bg-slate-100 hover:text-blue-700': $store.navegacion.vistaActual !== 'ciclo' }" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all">
             <i class="fa-solid fa-arrows-spin w-5 text-center"></i>
             <span class="font-medium text-sm">Ciclo</span>
           </button>
 
-          <button onclick="switchTab('clases')" id="btn-clases" aria-label="Clases" title="Clases" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+          <button @click="$store.navegacion.navegar('clases')" id="btn-clases" aria-label="Clases" title="Clases" :aria-current="$store.navegacion.vistaActual === 'clases' ? 'page' : null" :class="{ 'nav-activo font-semibold': $store.navegacion.vistaActual === 'clases', 'text-slate-600 hover:bg-slate-100 hover:text-blue-700': $store.navegacion.vistaActual !== 'clases' }" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all">
             <i class="fa-solid fa-chalkboard-user w-5 text-center"></i>
             <span class="font-medium text-sm">Clases</span>
           </button>
 
-          <button onclick="switchTab('plantillas')" id="btn-plantillas" aria-label="Plantillas" title="Plantillas" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+          <button @click="$store.navegacion.navegar('plantillas')" id="btn-plantillas" aria-label="Plantillas" title="Plantillas" :aria-current="$store.navegacion.vistaActual === 'plantillas' ? 'page' : null" :class="{ 'nav-activo font-semibold': $store.navegacion.vistaActual === 'plantillas', 'text-slate-600 hover:bg-slate-100 hover:text-blue-700': $store.navegacion.vistaActual !== 'plantillas' }" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all">
             <i class="fa-solid fa-file-excel w-5 text-center"></i>
             <span class="font-medium text-sm">Plantillas</span>
           </button>
 
-          <button onclick="switchTab('tareas')" id="btn-tareas" aria-label="Tareas" title="Tareas" aria-current="page" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl nav-activo font-semibold transition-all">
+          <button @click="$store.navegacion.navegar('tareas')" id="btn-tareas" aria-label="Tareas" title="Tareas" :aria-current="$store.navegacion.vistaActual === 'tareas' ? 'page' : null" :class="{ 'nav-activo font-semibold': $store.navegacion.vistaActual === 'tareas', 'text-slate-600 hover:bg-slate-100 hover:text-blue-700': $store.navegacion.vistaActual !== 'tareas' }" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all">
             <i class="fa-solid fa-list-check w-5 text-center"></i>
             <span class="text-sm">Tareas</span>
           </button>
 
-          <button onclick="switchTab('reportes')" id="btn-reportes" aria-label="Reportes" title="Reportes" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+          <button @click="$store.navegacion.navegar('reportes')" id="btn-reportes" aria-label="Reportes" title="Reportes" :aria-current="$store.navegacion.vistaActual === 'reportes' ? 'page' : null" :class="{ 'nav-activo font-semibold': $store.navegacion.vistaActual === 'reportes', 'text-slate-600 hover:bg-slate-100 hover:text-blue-700': $store.navegacion.vistaActual !== 'reportes' }" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all">
             <i class="fa-solid fa-chart-pie w-5 text-center"></i>
             <span class="font-medium text-sm">Reportes</span>
           </button>
@@ -101,8 +103,8 @@
 <!-- INICIO: Cabecera -->
       <header class="glass-header px-8 py-4 flex justify-between items-center sticky top-0 z-10">
         <div class="encabezado-identidad"><div>
-          <h1 id="view-title" class="text-xl font-bold text-slate-900 tracking-wide">Módulo de Tareas</h1>
-          <p id="view-subtitle" class="text-xs text-slate-600">Gestión e integración con Google Classroom</p>
+          <h1 id="view-title" x-text="$store.navegacion.moduloActual.titulo" class="text-xl font-bold text-slate-900 tracking-wide">Módulo de Tareas</h1>
+          <p id="view-subtitle" x-text="$store.navegacion.moduloActual.subtitulo" class="text-xs text-slate-600">Gestión e integración con Google Classroom</p>
         </div></div>
 
         <div class="flex items-center gap-3">
@@ -163,5 +165,6 @@
   <?!= include('CondicionesPrueba'); ?>
   <?!= include('Scripts'); ?>
   <?!= include('FlujosTareas'); ?>
+  <?!= include('Navegacion'); ?>
 </body>
 </html>

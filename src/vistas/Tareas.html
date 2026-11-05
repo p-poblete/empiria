@@ -1,7 +1,7 @@
         <!-- VISTA TAREAS -->
         
 <!-- INICIO: view-tareas -->
-        <div id="view-tareas" class="view-panel space-y-6 flex-1 flex flex-col justify-between">
+        <div id="view-tareas" x-cloak x-show="$store.navegacion.vistaActual === 'tareas'" class="view-panel space-y-6 flex-1 flex flex-col justify-between">
           <div id="aviso-ciclo-cerrado" class="hidden aviso-ciclo-cerrado rounded-xl px-4 py-3 flex items-center space-x-3 fade-in">
             <i class="fa-solid fa-circle-info text-lg"></i>
             <span class="text-sm font-medium">El ciclo seleccionado está cerrado. Solo puede consultar la información. Para publicar nuevas actividades, seleccione el ciclo activo.</span>

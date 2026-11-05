@@ -9,8 +9,7 @@
     var dashboard = document.getElementById('app-dashboard');
 
     if (viewLogin && dashboard) {
-      viewLogin.classList.add('hidden');
-      dashboard.classList.remove('hidden');
+      Alpine.store('navegacion').sesionIniciada = true;
       dashboard.classList.add('fade-in');
 
       // FA-020: antes de continuar, las transacciones colgadas por un cierre
@@ -35,8 +34,7 @@
     cerrarModalExito();
     cerrarModalCrearPlantilla();
     cancelarFormulario();
-    document.getElementById('app-dashboard').classList.add('hidden');
-    document.getElementById('view-login').classList.remove('hidden');
+    Alpine.store('navegacion').sesionIniciada = false;
     cicloEstadoActual = 'ACTIVO';
     selectCiclo('Ciclo 2026-II', 'ACTIVO');
     switchTab('inicio');
@@ -257,32 +255,9 @@
     reportes: { subtitulo: 'Indicadores y producción científica de los investigadores.', titulo: 'Módulo de Reportes de Investigación', alEntrar: inicializarModuloReportes }
   };
 
+  // Puente para los flujos existentes; Alpine es el único dueño de la vista activa.
   function switchTab(tabId) {
-    if (!Object.prototype.hasOwnProperty.call(MODULOS, tabId)) return;
-    var modulo = MODULOS[tabId];
-    var selectedView = document.getElementById('view-' + tabId);
-    var selectedBtn = document.getElementById('btn-' + tabId);
-    if (!selectedView || !selectedBtn) return;
-
-    document.querySelectorAll('.view-panel').forEach(function(panel) { panel.classList.add('hidden'); });
-    document.querySelectorAll('.nav-btn').forEach(function(btn) {
-      btn.removeAttribute('aria-current');
-      btn.className = "nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all";
-    });
-
-    var title = document.getElementById('view-title');
-
-    if (selectedView) selectedView.classList.remove('hidden');
-    if (selectedBtn) {
-      selectedBtn.setAttribute('aria-current', 'page');
-      selectedBtn.className = "nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl nav-activo font-semibold transition-all";
-    }
-
-    if (title) title.innerText = modulo.titulo;
-    var subtitulo = document.getElementById('view-subtitle');
-    if (subtitulo) subtitulo.innerText = modulo.subtitulo;
-    document.getElementById('ciclo-dropdown').classList.add('hidden');
-    if (modulo.alEntrar) modulo.alEntrar();
+    Alpine.store('navegacion').navegar(tabId);
   }
 
   // FIN: 4. NAVEGACIÓN POR PESTAÑAS
@@ -455,29 +430,16 @@
   // INICIO: 7. REPORTES POR INVESTIGADOR / CARRERA Y LÍNEA DE INVESTIGACIÓN
   var datosReportesCache = null;
   var reportesCargando = false;
-  var submoduloReporteActual = 'investigador';
 
   function cambiarSubmoduloReportes(nombre) {
-    if (['investigador', 'carrera'].indexOf(nombre) === -1) return;
-    submoduloReporteActual = nombre;
-    ['btn-filtros-generales', 'btn-descargar-investigador'].forEach(function(id) {
-      document.getElementById(id).classList.toggle('hidden', nombre !== 'investigador');
-    });
-    ['btn-filtros-carrera', 'btn-descargar-carrera'].forEach(function(id) { document.getElementById(id).classList.toggle('hidden', nombre !== 'carrera'); });
-    ['investigador', 'carrera'].forEach(function(id) {
-      var activo = id === nombre;
-      document.getElementById('reporte-' + id).classList.toggle('hidden', !activo);
-      var boton = document.getElementById('tab-reporte-' + id);
-      boton.setAttribute('aria-selected', activo ? 'true' : 'false');
-      boton.setAttribute('tabindex', activo ? '0' : '-1');
-    });
+    Alpine.store('navegacion').cambiarReporte(nombre);
   }
 
   function navegarTabsReportes(event) {
     if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(event.key) === -1) return;
     event.preventDefault();
     var destino = event.key === 'Home' ? 'investigador' : event.key === 'End' ? 'carrera' :
-      submoduloReporteActual === 'investigador' ? 'carrera' : 'investigador';
+      Alpine.store('navegacion').reporteActual === 'investigador' ? 'carrera' : 'investigador';
     cambiarSubmoduloReportes(destino);
     document.getElementById('tab-reporte-' + destino).focus();
   }
@@ -536,12 +498,7 @@
   // Visibilidad de los paneles de reportes: se ocultan cuando no hay datos
   // cargados (estado de error) y se restauran al finalizar una carga válida.
   function establecerPanelesReportes(visibles) {
-    ['reporte-investigador', 'reporte-carrera'].forEach(function(id) {
-      var panel = document.getElementById(id);
-      if (panel) panel.classList.toggle('hidden', !visibles);
-    });
-    var tabs = document.querySelector('.reporte-tabs');
-    if (tabs) tabs.classList.toggle('hidden', !visibles);
+    Alpine.store('navegacion').reportesVisibles = visibles;
   }
 
   function mostrarErrorReportes(desdeServicio, texto) {
@@ -615,7 +572,7 @@
     llenarSelectReporte('carrera-select', unicosReporte(investigadoresReporte().map(function(inv) { return inv.carrera; })), 'Todas las carreras');
     filtrarInvestigadoresReporte();
     cambiarCarreraReporte();
-    cambiarSubmoduloReportes(submoduloReporteActual);
+    cambiarSubmoduloReportes(Alpine.store('navegacion').reporteActual);
   }
 
   function cargarDatosInvestigador() {

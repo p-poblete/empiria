@@ -1,0 +1,34 @@
+<!-- Estado compartido de navegación. Se registra antes del inicio diferido de Alpine. -->
+<script>
+  document.addEventListener('alpine:init', function() {
+    Alpine.store('navegacion', {
+      // La sesión continúa siendo la demostración local existente, sin autenticación real.
+      sesionIniciada: false,
+      vistaActual: 'inicio',
+      reporteActual: 'investigador',
+      reportesVisibles: false,
+
+      get moduloActual() {
+        return MODULOS[this.vistaActual];
+      },
+
+      navegar: function(destino) {
+        if (!Object.prototype.hasOwnProperty.call(MODULOS, destino)) return;
+        this.vistaActual = destino;
+        document.getElementById('ciclo-dropdown').classList.add('hidden');
+        // Los gráficos necesitan que x-show haya hecho visible el módulo antes de medirlo.
+        var navegacion = this;
+        Alpine.nextTick(function() {
+          if (navegacion.vistaActual !== destino) return;
+          var modulo = MODULOS[destino];
+          if (modulo.alEntrar) modulo.alEntrar();
+        });
+      },
+
+      cambiarReporte: function(nombre) {
+        if (['investigador', 'carrera'].indexOf(nombre) === -1) return;
+        this.reporteActual = nombre;
+      }
+    });
+  });
+</script>

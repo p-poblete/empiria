@@ -1,11 +1,17 @@
 # Estado de sesión — 2026-11-05
 
-Se revisaron los archivos actuales tras cambios locales del usuario. No hay Git ni una referencia inmediata anterior; el ZIP de archivos es del 14 de octubre y no permite atribuir con precisión los cambios de hoy.
+Repositorio público: https://github.com/p-poblete/empiria. Git inicializado y copia inicial publicada en main. Rama actual de trabajo: `feat/alpine-casos-uso`.
 
-Verificaciones: sintaxis de todos los bloques JavaScript y scripts del servidor correcta; composición de Index sin IDs duplicados ni referencias literales getElementById ausentes. Prueba local del servidor con servicios simulados confirma que el consolidado existente conserva cifras antiguas después de modificar BaseDatos.
+## Actualización tecnológica
 
-Hallazgos pendientes en obtenerConsolidadoCiclo (Código.gs): lectura/creación sin exclusión mutua permite libros duplicados; retorno inmediato del archivo existente deja los datos desactualizados; la protección de advertencia no impide editar y no configura permisos de consulta para usuarios del despliegue.
+Plan acordado en `docs/PLAN_MIGRACION_ALPINE.md`. El usuario autorizó ejecutar las etapas 1 y 2: preparación y navegación. Se confirmaron los nombres formales CU-002 (Generar Actividad de Seguimiento) y CU-005 (Generar reporte de seguimiento de investigación).
 
-No se modificó el código de la aplicación. Siguiente paso: corregir el consolidado si el usuario lo solicita y validar permisos y apertura en un despliegue real de Apps Script. No se realizó validación visual ni integración con Google.
+Implementado Alpine 3.17.5 con versión fija y defer; store de navegación en el nuevo HTML `Navegacion`; navegación principal, acceso de demostración, títulos y pestañas de Reportes reactivos. Los puentes switchTab/cambiarSubmoduloReportes conservan los flujos alternativos. Los datos, formularios y llamadas al servidor mantienen su implementación previa. Para Apps Script se debe añadir el HTML Navegacion.
 
-Se inicializa Git en main y se prepara el repositorio público p-poblete/empiria por solicitud explícita del usuario para colaborar con sus compañeros. Se incluyen código, documentación, referencias y habilidades locales; .gitignore excluye credenciales/configuración local y Graphify generado. Revisión de patrones de secretos en archivos y contenidos ZIP/XLSX sin coincidencias.
+Verificaciones: sintaxis JS, composición sin IDs duplicados ni referencias literales ausentes; Chromium con Alpine real y servicio de reportes simulado: seis módulos, accesos directos, conservación de formulario/ciclo/pestaña, carga/éxito/error/reintento, teclado, salida/reentrada y flujo sin ciclo activo. Sin errores JS/Alpine. Capturas a 1440/768/390 y revisión visual de escritorio/móvil. No se probó un despliegue real de Apps Script.
+
+Siguiente paso: etapa 3, CU-002 (plantillas desde servidor, x-for/x-model y estados de carga/publicación). Después CU-005. La integración en Google y el cumplimiento completo de la rúbrica siguen pendientes. El grafo existente es anterior a esta migración; no se reconstruyó, verificar las relaciones en fuente.
+
+## Hallazgos previos pendientes
+
+`obtenerConsolidadoCiclo` conserva datos antiguos cuando el libro ya existe, no usa bloqueo contra duplicados y la protección de advertencia no garantiza solo consulta ni configura acceso de lectores. No se corrigieron en esta migración.

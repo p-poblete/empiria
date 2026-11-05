@@ -1,19 +1,19 @@
 <!-- MÓDULO DE REPORTES: navegación y estado compartido -->
 <!-- INICIO: view-reportes -->
-<div id="view-reportes" class="view-panel hidden space-y-6 fade-in">
+<div id="view-reportes" :data-reporte-activo="$store.navegacion.reporteActual" x-cloak x-show="$store.navegacion.vistaActual === 'reportes'" class="view-panel space-y-6 fade-in">
   <div class="reporte-seccion">
     <div><p class="reporte-eyebrow">ANÁLISIS DE INVESTIGACIÓN</p><h2>Reportes de investigación</h2><p>Explora la producción individual o los resultados por carrera y línea.</p></div>
     <div class="reporte-acciones">
-      <button id="btn-filtros-generales" type="button" class="inv-boton-filtros" aria-haspopup="dialog" aria-controls="inv-dialogo-generales" onclick="abrirFiltrosInvestigador('generales')"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros generales</button>
-      <button id="btn-descargar-investigador" type="button" class="inv-boton-filtros" aria-label="Descargar reporte del investigador" onclick="abrirDescargaInvestigador()"><i class="fa-solid fa-download" aria-hidden="true"></i> Descargar</button>
-      <button id="btn-filtros-carrera" type="button" class="hidden inv-boton-filtros" aria-haspopup="dialog" aria-controls="carrera-dialogo-generales" onclick="abrirFiltrosCarrera('generales')"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros generales</button>
-      <button id="btn-descargar-carrera" type="button" class="hidden inv-boton-filtros" aria-haspopup="dialog" aria-controls="carrera-dialogo-descarga" onclick="abrirDescargaCarrera()"><i class="fa-solid fa-download" aria-hidden="true"></i> Descargar</button>
+      <button id="btn-filtros-generales" x-show="$store.navegacion.reporteActual === 'investigador'" type="button" class="inv-boton-filtros" aria-haspopup="dialog" aria-controls="inv-dialogo-generales" onclick="abrirFiltrosInvestigador('generales')"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros generales</button>
+      <button id="btn-descargar-investigador" x-show="$store.navegacion.reporteActual === 'investigador'" type="button" class="inv-boton-filtros" aria-label="Descargar reporte del investigador" onclick="abrirDescargaInvestigador()"><i class="fa-solid fa-download" aria-hidden="true"></i> Descargar</button>
+      <button id="btn-filtros-carrera" x-show="$store.navegacion.reporteActual === 'carrera'" type="button" class="inv-boton-filtros" aria-haspopup="dialog" aria-controls="carrera-dialogo-generales" onclick="abrirFiltrosCarrera('generales')"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Filtros generales</button>
+      <button id="btn-descargar-carrera" x-show="$store.navegacion.reporteActual === 'carrera'" type="button" class="inv-boton-filtros" aria-haspopup="dialog" aria-controls="carrera-dialogo-descarga" onclick="abrirDescargaCarrera()"><i class="fa-solid fa-download" aria-hidden="true"></i> Descargar</button>
       <button type="button" onclick="abrirGoogleSheetsReporte()" class="boton-primario reporte-exportar"><i class="fa-solid fa-file-excel" aria-hidden="true"></i> Abrir consolidado en Sheets ↗</button>
     </div>
   </div>
-  <div class="reporte-tabs" role="tablist" aria-label="Tipo de reporte">
-    <button type="button" id="tab-reporte-investigador" role="tab" aria-controls="reporte-investigador" aria-selected="true" onclick="cambiarSubmoduloReportes('investigador')" onkeydown="navegarTabsReportes(event)"><i class="fa-solid fa-user" aria-hidden="true"></i> Por investigador</button>
-    <button type="button" id="tab-reporte-carrera" role="tab" aria-controls="reporte-carrera" aria-selected="false" tabindex="-1" onclick="cambiarSubmoduloReportes('carrera')" onkeydown="navegarTabsReportes(event)"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Por carrera y línea de investigación</button>
+  <div class="reporte-tabs" x-show="$store.navegacion.reportesVisibles" role="tablist" aria-label="Tipo de reporte">
+    <button type="button" id="tab-reporte-investigador" role="tab" aria-controls="reporte-investigador" :aria-selected="$store.navegacion.reporteActual === 'investigador'" :tabindex="$store.navegacion.reporteActual === 'investigador' ? 0 : -1" @click="$store.navegacion.cambiarReporte('investigador')" @keydown="navegarTabsReportes($event)"><i class="fa-solid fa-user" aria-hidden="true"></i> Por investigador</button>
+    <button type="button" id="tab-reporte-carrera" role="tab" aria-controls="reporte-carrera" :aria-selected="$store.navegacion.reporteActual === 'carrera'" :tabindex="$store.navegacion.reporteActual === 'carrera' ? 0 : -1" @click="$store.navegacion.cambiarReporte('carrera')" @keydown="navegarTabsReportes($event)"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Por carrera y línea de investigación</button>
   </div>
   <p id="aviso-reportes-cerrado" class="hidden aviso-ciclo-cerrado rounded-xl px-4 py-3 text-sm font-medium" role="status">El ciclo seleccionado está cerrado. Los datos históricos se presentan en modo de solo consulta: puede filtrarlos y exportarlos, sin modificarlos.</p>
   <p id="estado-reportes" class="reporte-nota" role="status" aria-live="polite">Cargando reportes…</p>

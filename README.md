@@ -25,3 +25,9 @@ Crea en el editor de Apps Script los archivos de `src/`, conservando sus nombres
 Las llamadas `include('…')` y `createTemplateFromFile('Index')` conservan los nombres del proyecto de Apps Script. Las carpetas organizan el repositorio local.
 
 Previsualiza mediante **Deploy → Test deployments** con un despliegue de aplicación web. Abrir `Index.html` directamente no evalúa las inclusiones del servidor. No hay un comando de compilación ni un ejecutor de pruebas configurados.
+
+## Actualización con Alpine.js
+
+El [plan de migración](docs/PLAN_MIGRACION_ALPINE.md) recoge las etapas, criterios de evaluación y estado de avance para CU-002 y CU-005. La primera entrega incorpora navegación reactiva con Alpine 3.17.5; carga y poblamiento reactivo desde el servidor siguen pendientes.
+
+Al copiar esta versión al editor de Apps Script, incluye el nuevo HTML `Navegacion`, además de los archivos existentes. Alpine se carga desde CDN y requiere conexión a Internet.
