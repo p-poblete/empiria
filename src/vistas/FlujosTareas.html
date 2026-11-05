@@ -179,6 +179,7 @@
   // INICIO: FA-015 a FA-018 · Clasificación de errores y publicación con reintentos
   function clasificarErrorClassroom(error) {
     var texto = String((error && (error.message || String(error))) || '');
+    if (/VALIDACION|DUPLICADO/.test(texto)) return { tipo: 'Validación', mensaje: texto };
     if (/PERMISOS|PERMISSION|FORBIDDEN|403/i.test(texto)) return { tipo: 'Permisos', mensaje: 'Error de permisos. Asegúrese de tener el rol de Profesor en la clase de Google Classroom.' };
     if (/CUOTA|QUOTA|RATE|429|EXCEEDED/i.test(texto)) return { tipo: 'Cuota', mensaje: 'El servicio de Google Classroom no está disponible en este momento. Intente nuevamente en unos minutos.', reintentar: true };
     if (/ADJUNTO|ATTACH|DRIVE/i.test(texto)) return { tipo: 'Adjunto', mensaje: 'No se pudo adjuntar la plantilla base a la tarea. Verifique los permisos del archivo e intente nuevamente.' };
@@ -192,30 +193,10 @@
     return typeof condicionComportamientoClassroom === 'function' ? condicionComportamientoClassroom() : 'correcto';
   }
 
-  // Paso 35: crea la tarea con título, descripción y fecha/hora de entrega.
-  function crearTareaClassroom(datos) {
-    var comportamiento = comportamientoClassroom();
-    if (comportamiento === 'sinPermisos') throw new Error('PERMISOS: el usuario no tiene el rol de Profesor en la clase (403)');
-    if (comportamiento === 'cuota') throw new Error('CUOTA: Resource_Exhausted, cuota de peticiones excedida (429)');
-    if (comportamiento === 'sinConexion') throw new Error('CONEXION: no se recibió respuesta del servicio de Classroom');
-    return 'CR-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
-  }
-
-  // Pasos 36 y 37: adjunta la plantilla en modo de trabajo individual y publica.
-  function adjuntarYPublicarClassroom(idTarea, datos) {
-    if (comportamientoClassroom() === 'adjunto') throw new Error('ADJUNTO: DriveApp no pudo adjuntar el archivo de la plantilla');
-  }
-
-  // Pasos 35 a 38. El identificador se guarda al crear la tarea para poder revertirla
-  // si el adjunto falla (FA-017) o el Director cancela (FA-014).
-  function ejecutarPasosPublicacion(transaccion, datos) {
-    transaccion.idTarea = crearTareaClassroom(datos);
-    adjuntarYPublicarClassroom(transaccion.idTarea, datos);
-  }
-
   // Comunicación del fallo (FA-015, FA-017, FA-018): auditoría, reversión de la tarea
   // parcial, transacción Fallido, botón habilitado y mensaje documentado.
-  function fallerTransaccion(clasificado, transaccion, datos) {
+  function fallarTransaccion(clasificado, transaccion, datos) {
+    Alpine.store('tareas').errorPublicacion = clasificado.mensaje;
     registrarAuditoria(clasificado.tipo, clasificado.mensaje, datos.ciclo, transaccion.idTarea || null);
     // FA-017 paso 3: la tarea creada sin adjunto se elimina de Classroom.
     if (transaccion.idTarea) {
@@ -232,37 +213,54 @@
     alert(clasificado.mensaje);
   }
 
-  function procesarPublicacion(transaccion, datos) {
-    // La transacción pudo cancelarse (FA-014) mientras esperaba un reintento.
+  async function procesarPublicacion(transaccion, datos) {
     if (transaccion.estado !== 'En Proceso') return;
+    if (typeof consumirPrueba === 'function' && consumirPrueba('sesionProceso')) {
+      finalizarTransaccion(transaccion.id, 'Fallido');
+      registrarAuditoria('Sesión', 'La sesión expiró antes del envío al servidor. No se creó la tarea.', datos.ciclo);
+      resetearBotonCrear();
+      cerrarSesion();
+      avisoSistema('Su sesión ha expirado. Inicie sesión nuevamente para continuar.', 'Iniciar sesión', function() { iniciarSesion('tareas'); });
+      return;
+    }
+    transaccion.esperandoReintento = false;
+    transaccion.enVuelo = true;
     try {
-      // FA-019 (pasos 32 a 39): la sesión puede expirar durante el procesamiento.
-      // La transacción queda Fallido, se cierra la sesión y se solicita autenticarse.
-      if (typeof consumirPrueba === 'function' && consumirPrueba('sesionProceso')) {
-        finalizarTransaccion(transaccion.id, 'Fallido');
-        registrarAuditoria('Sesión', 'La sesión expiró mientras se procesaba la publicación en ' + datos.ciclo + '. No se creó la tarea.', datos.ciclo);
-        if (typeof resetearBotonCrear === 'function') resetearBotonCrear();
-        cerrarSesion();
-        if (typeof avisoSistema === 'function') {
-          avisoSistema('Su sesión ha expirado. Inicie sesión nuevamente para continuar.', 'Iniciar sesión', function() { iniciarSesion('tareas'); });
-        } else {
-          alert('Su sesión ha expirado. Inicie sesión nuevamente para continuar.');
-        }
-        return;
-      }
-      ejecutarPasosPublicacion(transaccion, datos);
-      completarPublicacionTransaccion(transaccion, datos);
+      var respuesta = await llamarServidor('publicarActividadDemo', [datos, { sesion: Alpine.store('tareas').sesion, comportamiento: comportamientoClassroom() }]);
+      transaccion.respuestaPendiente = { respuesta: respuesta };
     } catch (error) {
-      var clasificado = clasificarErrorClassroom(error);
-      // FA-016: hasta tres reintentos con espera progresiva ante cuota excedida.
+      transaccion.respuestaPendiente = { error: error };
+    }
+    transaccion.enVuelo = false;
+    resolverRespuestaPublicacion(transaccion, datos);
+  }
+
+  function resolverRespuestaPublicacion(transaccion, datos) {
+    // Una respuesta tardía no puede confirmar una operación cancelada. Si hay
+    // cancelación pendiente, esperamos su confirmación antes de presentar el éxito.
+    if (transaccion.estado !== 'En Proceso' || Alpine.store('tareas').cancelando || !transaccion.respuestaPendiente) return;
+    var pendiente = transaccion.respuestaPendiente;
+    transaccion.respuestaPendiente = null;
+    if (!pendiente.error && (!pendiente.respuesta || pendiente.respuesta.idOperacion !== datos.idOperacion || ['Completado', 'Cancelado'].indexOf(pendiente.respuesta.estado) === -1 || pendiente.respuesta.estado === 'Completado' && !pendiente.respuesta.idTarea)) pendiente.error = new Error('Respuesta de publicación inválida.');
+    if (pendiente.error) {
+      var clasificado = clasificarErrorClassroom(pendiente.error);
       if (clasificado.reintentar && (transaccion.intentos || 0) < 3) {
         transaccion.intentos = (transaccion.intentos || 0) + 1;
-        registrarAuditoria('Cuota', 'Reintento ' + transaccion.intentos + ' de 3 por cuota excedida en las APIs de Google.', datos.ciclo, transaccion.idTarea || null);
+        registrarAuditoria('Cuota', 'Reintento ' + transaccion.intentos + ' de 3 por cuota excedida.', datos.ciclo);
+        transaccion.esperandoReintento = true;
         temporizadorTarea = setTimeout(function() { procesarPublicacion(transaccion, datos); }, ESPERAS_REINTENTO_CLASSROOM[transaccion.intentos - 1]);
         return;
       }
-      fallerTransaccion(clasificado, transaccion, datos);
+      fallarTransaccion(clasificado, transaccion, datos);
+      return;
     }
+    if (pendiente.respuesta.estado === 'Cancelado') {
+      finalizarTransaccion(transaccion.id, 'Cancelado');
+      resetearBotonCrear();
+      return;
+    }
+    transaccion.idTarea = pendiente.respuesta.idTarea;
+    completarPublicacionTransaccion(transaccion, datos);
   }
   // FIN: FA-015 a FA-018 · Clasificación de errores y publicación con reintentos
 
@@ -280,7 +278,7 @@
     registrarAuditoria('Publicación', 'Tarea "' + datos.titulo + '" publicada en Classroom para ' + datos.ciclo + '.', datos.ciclo, transaccion.idTarea); // paso 41
 
     // Paso 42; el formulario se limpia y oculta al pulsar «Aceptar» (paso 45).
-    document.getElementById('mensaje-exito-detalle').innerText = 'La tarea “' + datos.titulo + '” ha sido registrada correctamente en Classroom.';
+    document.getElementById('mensaje-exito-detalle').innerText = 'La actividad “' + datos.titulo + '” se registró en la simulación de Apps Script. ID: ' + transaccion.idTarea + '. No se publicó en Classroom.';
     document.getElementById('modal-exito').classList.remove('hidden');
     if (typeof setBotonCreando === 'function') setBotonCreando(false);
     if (typeof renderizarPlantillas === 'function') renderizarPlantillas();
@@ -291,32 +289,45 @@
   // INICIO: FA-014 · Cancelación de la publicación en curso
   // Detiene la publicación activa, revierte la tarea parcial si existiera y deja
   // la transacción en estado Cancelado (pasos 2 a 7).
-  function marcarCancelacionPublicacion() {
-    if (transaccionPublicacionId == null) return;
+  async function marcarCancelacionPublicacion() {
+    if (transaccionPublicacionId == null) return true;
+    var tareas = Alpine.store('tareas');
+    if (tareas.cancelando) return false;
     clearTimeout(temporizadorTarea);
     var transaccion = transaccionesEmpiria.find(function(t) { return t.id === transaccionPublicacionId; });
-    if (transaccion && transaccion.idTarea) {
-      tareasRegistradasClassroom = tareasRegistradasClassroom.filter(function(t) { return t.idTarea !== transaccion.idTarea; });
-      registrarAuditoria('Cancelación', 'Se eliminó la tarea parcial ' + transaccion.idTarea + ' de Classroom tras cancelar.', transaccion.ciclo, transaccion.idTarea);
+    if (!transaccion.datos) { finalizarTransaccion(transaccion.id, 'Cancelado'); resetearBotonCrear(); return true; }
+    tareas.cancelando = true;
+    try {
+      var respuesta = await llamarServidor('cancelarActividadDemo', [transaccion.datos.idOperacion, tareas.sesion]);
+      if (!respuesta || respuesta.idOperacion !== transaccion.datos.idOperacion || respuesta.estado !== 'Cancelado') throw new Error('Cancelación no confirmada.');
+      finalizarTransaccion(transaccion.id, 'Cancelado');
+      registrarAuditoria('Cancelación', 'Cancelación y reversión de la simulación confirmadas por Apps Script.', transaccion.ciclo);
+      tareas.errorPublicacion = '';
+      resetearBotonCrear();
+      return true;
+    } catch (error) {
+      tareas.errorPublicacion = 'No se pudo confirmar la cancelación. Puede reintentar Cancelar publicación. ' + String(error.message || error);
+      return false;
+    } finally {
+      tareas.cancelando = false;
+      if (transaccion.estado === 'En Proceso') {
+        var teniaRespuesta = !!transaccion.respuestaPendiente;
+        resolverRespuestaPublicacion(transaccion, transaccion.datos);
+        // Si se interrumpió una espera por cuota y no había petición en vuelo,
+        // deja disponible el envío con el mismo identificador para reintentar.
+        if (!teniaRespuesta && transaccion.esperandoReintento && !transaccion.enVuelo && transaccion.estado === 'En Proceso') {
+          temporizadorTarea = setTimeout(function() { procesarPublicacion(transaccion, transaccion.datos); }, 600);
+        }
+      }
     }
-    finalizarTransaccion(transaccionPublicacionId, 'Cancelado');
   }
 
-  function cancelarPublicacionEnCurso() {
-    if (transaccionPublicacionId == null) return;
-    var ciclo = transaccionesEmpiria.find(function(t) { return t.id === transaccionPublicacionId; }).ciclo;
-    marcarCancelacionPublicacion();
-    if (typeof resetearBotonCrear === 'function') resetearBotonCrear();
-    registrarAuditoria('Cancelación', 'Publicación cancelada por el Director en ' + ciclo + '.', ciclo);
-    alert('Publicación cancelada. No se generaron cambios en Google Classroom.');
-    if (typeof cancelarFormulario === 'function') cancelarFormulario();
+  async function cancelarPublicacionEnCurso() {
+    if (await marcarCancelacionPublicacion()) {
+      cancelarFormulario();
+    }
   }
 
-  // Estado del botón secundario durante la publicación (paso 33 del flujo básico).
-  function actualizarControlCancelarPublicacion(creando) {
-    var boton = document.getElementById('btn-cancelar-publicacion');
-    if (boton) boton.classList.toggle('hidden', !creando);
-  }
   // FIN: FA-014 · Cancelación de la publicación en curso
 
   // INICIO: RN-002-08 · Cancelación del formulario antes de publicar (FA-013)
@@ -324,7 +335,7 @@
   // en Cancelado, sin mostrar mensajes adicionales al FA-014.
   function marcarCancelacionFormulario() {
     if (transaccionPublicacionId == null) return;
-    marcarCancelacionPublicacion();
+    return marcarCancelacionPublicacion();
   }
   // FIN: RN-002-08 · Cancelación del formulario antes de publicar
 

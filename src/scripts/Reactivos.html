@@ -1,0 +1,116 @@
+<!-- Integración asíncrona y estado reactivo de CU-002 / CU-005. -->
+<script>
+  // Convierte callbacks de Apps Script en una promesa. Sin el puente real falla
+  // explícitamente; los dobles de prueba se instalan solo en el navegador de pruebas.
+  function llamarServidor(nombre, argumentos) {
+    return new Promise(function(resolve, reject) {
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        reject(new Error('Ejecute la aplicación en Google Apps Script para conectar con el servidor.'));
+        return;
+      }
+      var runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      runner[nombre].apply(runner, JSON.parse(JSON.stringify(argumentos || [])));
+    });
+  }
+
+  function formularioTareaInicial() {
+    return { titulo: '', descripcion: '', fecha: '', hora: '23:59', plantillaId: '', hojaInicial: '', hojaFinal: '' };
+  }
+
+  document.addEventListener('alpine:init', function() {
+    Alpine.store('tareas', {
+      formulario: formularioTareaInicial(),
+      plantillas: [], cargandoPlantillas: false, errorPlantillas: '', cicloCargado: '', solicitud: 0,
+      publicando: false, cancelando: false, errorPublicacion: '', cicloCerrado: false,
+      sesion: 'demo-' + crypto.randomUUID(),
+      get disponibles() {
+        return this.plantillas.filter(function(p) { return p.estado === 'disponible'; });
+      },
+      get ayudaHojas() {
+        var id = this.formulario.plantillaId;
+        var plantilla = this.plantillas.find(function(p) { return p.id === id; });
+        return plantilla ? 'Hojas disponibles, en orden: ' + plantilla.hojas.join(' → ') + '. Puede seleccionar una sola hoja usando el mismo nombre en ambos extremos.' : 'Seleccione una plantilla para consultar sus hojas disponibles.';
+      },
+      cargarPlantillas: async function(forzar) {
+        var ciclo = cicloReporte();
+        if (!forzar && (this.cargandoPlantillas && this.cicloSolicitado === ciclo || this.cicloCargado === ciclo)) return;
+        var solicitud = ++this.solicitud;
+        this.cicloSolicitado = ciclo;
+        this.cargandoPlantillas = true;
+        this.errorPlantillas = '';
+        try {
+          var respuesta = await llamarServidor('obtenerPlantillasTarea', [ciclo]);
+          if (solicitud !== this.solicitud) return;
+          if (!respuesta || respuesta.ciclo !== ciclo || !Array.isArray(respuesta.plantillas) || respuesta.plantillas.some(function(p) { return !p || !p.id || !p.nombre || !Array.isArray(p.hojas); })) throw new Error('Catálogo de plantillas inválido.');
+          // Mantiene las plantillas nuevas y las asociaciones de esta demostración.
+          var locales = plantillas;
+          plantillas = respuesta.plantillas.map(function(p) { return locales.find(function(local) { return local.id === p.id; }) || p; }).concat(locales.filter(function(p) { return p.creadaLocalmente && !respuesta.plantillas.some(function(remota) { return remota.id === p.id; }); }));
+          this.cicloCargado = ciclo;
+          actualizarSelectPlantillas();
+          renderizarPlantillas();
+        } catch (error) {
+          if (solicitud === this.solicitud) this.errorPlantillas = String(error.message || error);
+        } finally {
+          if (solicitud === this.solicitud) this.cargandoPlantillas = false;
+        }
+      }
+    });
+
+    Alpine.store('reportes', {
+      datos: null, cargando: false, error: '', solicitud: 0, abriendoConsolidado: false,
+      filtros: {}, opciones: {}, sinOpciones: {}, busquedas: {}, tablas: {},
+      init: function() {
+        var reporte = this;
+        document.querySelectorAll('#view-reportes select[data-opciones]').forEach(function(select) {
+          var config = JSON.parse(select.dataset.opciones);
+          reporte.opciones[select.id] = config.opciones;
+          reporte.filtros[select.id] = config.valor;
+          reporte.sinOpciones[select.id] = false;
+        });
+        ['publicaciones', 'carrera-publicaciones'].forEach(function(tipo) {
+          reporte.busquedas[tipo] = '';
+          reporte.tablas[tipo] = { columnas: [], filas: [], total: 0, pagina: 1, paginas: 1, mensaje: '', orden: '', direccion: 'ascending', filtros: {} };
+        });
+      },
+      get investigadores() { return this.datos ? this.datos.investigadores : []; },
+      get mensaje() {
+        if (this.cargando) return 'Cargando datos de investigación…';
+        if (this.error) return this.error;
+        return this.datos && !this.investigadores.length ? 'No hay investigadores registrados. Los reportes se muestran sin resultados.' : '';
+      },
+      llenarSelector: function(id, opciones, etiquetaTodos) {
+        var anterior = this.filtros[id];
+        var lista = opciones.map(function(item) { return typeof item === 'string' ? { valor: item, texto: item } : item; });
+        if (!lista.length) lista.push({ valor: '', texto: 'Sin opciones disponibles' });
+        else if (etiquetaTodos) lista.unshift({ valor: '', texto: etiquetaTodos });
+        this.opciones[id] = lista;
+        this.filtros[id] = lista.some(function(item) { return item.valor === anterior; }) ? anterior : lista[0].valor;
+        this.sinOpciones[id] = opciones.length === 0;
+      },
+      cargar: async function(forzar) {
+        var condicion = condicionRepositorioReportes();
+        if (this.cargando || this.datos && !forzar && !condicion) return;
+        var solicitud = ++this.solicitud;
+        this.cargando = true;
+        this.error = '';
+        establecerPanelesReportes(false);
+        try {
+          var respuesta = await llamarServidor('obtenerDatosReportes', [{ condicion: condicion }]);
+          if (solicitud !== this.solicitud) return;
+          if (!respuesta || !Array.isArray(respuesta.investigadores)) throw new Error('ESTRUCTURA: respuesta de reportes inválida.');
+          this.datos = respuesta;
+          renderizarVistaReportes(respuesta);
+          await Alpine.nextTick();
+          establecerPanelesReportes(true);
+        } catch (error) {
+          if (solicitud !== this.solicitud) return;
+          this.datos = null;
+          this.error = /ESTRUCTURA/.test(String(error.message || error)) ? 'La estructura de los datos del repositorio es inválida. Verifique el origen e intente nuevamente.' : 'No se pudieron cargar los reportes. ' + String(error.message || error);
+          establecerPanelesReportes(false);
+        } finally {
+          if (solicitud === this.solicitud) this.cargando = false;
+        }
+      }
+    });
+  });
+</script>

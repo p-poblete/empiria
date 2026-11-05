@@ -13,11 +13,11 @@ This repository contains the Spanish-language SGIU research and task management 
 - `datos/`: reference spreadsheet.
 - `archivos/`: existing ZIP archive.
 
-There are no separate test or build directories.
+Local verification lives in `tests/`. There is no application build step.
 
 ## Build, Test, and Development Commands
 
-No package manager, build command, test runner, or deployment CLI is configured. Use the Google Apps Script editor to create matching script and HTML files from `src/`, preserving base names and accents without the local directory prefixes. The Apps Script project uses a flat file namespace, so template references such as `include('Estilos')` remain unchanged. Preview the app through **Deploy → Test deployments** with a web app deployment.
+Use Node.js 22+ with `npm ci`, `npm test` (server and syntax), and `npm run test:browser` (Playwright). Install Chromium first with `npx playwright install chromium`, or set `EMPIRIA_CHROMIUM_PATH` to an existing compatible executable. There is no application build step or deployment CLI configured. Use the Google Apps Script editor to create matching script and HTML files from `src/`, preserving base names and accents without the local directory prefixes. The Apps Script project uses a flat file namespace, so template references such as `include('Estilos')` remain unchanged. Preview the app through **Deploy → Test deployments** with a web app deployment.
 
 Opening `Index.html` directly does not evaluate its server template includes. Validate integrated behavior in Apps Script, especially the `google.script.run` report request.
 
@@ -29,14 +29,18 @@ Keep DOM IDs consistent between markup and JavaScript. Put shared styles in `Est
 
 ## Testing Guidelines
 
-Verification is currently manual; no automated framework or coverage threshold exists. Exercise login/logout, tab navigation, active and closed cycles, task validation, template creation/filtering, and report rendering. Check browser console errors and layout after UI changes.
+Automated local checks use Node's test runner and Playwright; GitHub Actions runs both. Browser tests execute real endpoint code with Google services doubled and do not replace verification in Apps Script. There is no coverage threshold. Exercise login/logout, tab navigation, active and closed cycles, task validation, template creation/filtering, and report rendering. Check browser console errors and layout after UI changes.
 
-Test reports with `SIMULAR_SIN_INVESTIGADORES` set to both `false` and `true` to cover populated data and the FA-005 empty state. Restore the default `false` before submitting.
+Test report data, empty and error responses using the in-memory fixtures in `tests/`; do not modify demonstration records just to run tests. The old `SIMULAR_SIN_INVESTIGADORES` flag is no longer used. Preserve server-side validation and the explicit simulated nature of Classroom publishing.
 
 ## Commit & Pull Request Guidelines
 
-Git history is unavailable in this checkout, so no existing commit convention can be confirmed. Use short, imperative subjects describing one focused change. In pull requests, explain the behavior changed, link relevant issues, list manual checks performed, and attach screenshots for visible changes.
+Work on a feature branch and submit changes through a pull request against `main`. Use short, imperative subjects describing one focused change. In pull requests, explain the behavior changed, link relevant issues, list manual checks performed, and attach screenshots for visible changes.
 
 ## Security & Configuration
 
 Login and report records are demonstration data. Do not treat the simulated login as authentication or commit credentials or real researcher records. Keep sample spreadsheet links clearly identifiable as placeholders.
+
+## Alpine migration
+
+Read `docs/PLAN_MIGRACION_ALPINE.md` and `docs/GUIA_ALPINE.md` for the current state. Keep Alpine as the only owner of migrated selects, form fields and publication tables; update stores rather than assigning `innerHTML`, `value`, or `disabled` on those nodes. `Reactivos.html` contains async state; `Navegacion.html` contains shared navigation. The user postponed deployment to Apps Script; do not deploy unless explicitly requested.

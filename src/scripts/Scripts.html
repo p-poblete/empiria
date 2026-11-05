@@ -17,7 +17,7 @@
       rescatarTransaccionesColgadas();
 
       renderizarPlantillas();
-      actualizarSelectPlantillas();
+      Alpine.store('tareas').cargarPlantillas();
 
       // FA-003 de CU-002 (paso 4): sin ciclo activo se informa y se redirige a Ciclos.
       if (typeof estaConPrueba === 'function' && estaConPrueba('sinCicloActivo')) {
@@ -30,9 +30,12 @@
     }
   }
 
-  function cerrarSesion() {
+  async function cerrarSesion() {
+    if (transaccionPublicacionId && !await marcarCancelacionPublicacion()) return;
     cerrarModalExito();
     cerrarModalCrearPlantilla();
+    Alpine.store('reportes').solicitud++;
+    Alpine.store('reportes').cargando = false;
     cancelarFormulario();
     Alpine.store('navegacion').sesionIniciada = false;
     cicloEstadoActual = 'ACTIVO';
@@ -54,35 +57,18 @@
   // Espera simulada de la publicación en curso (pasos 35 a 38 y reintentos de FA-016).
   var temporizadorTarea = null;
 
-  var plantillas = [
-    {
-      id: 'P1',
-      nombre: 'Plantilla_Base_Proyectos_v1',
-      extension: '.gsheet',
-      fechaSubida: '15/03/2026',
-      numHojas: 5,
-      hojas: ['Hoja1', 'Hoja2', 'Hoja3', 'Hoja4', 'Hoja5'],
-      estado: 'disponible',
-      cicloAsociado: null,
-      urlSheets: 'https://docs.google.com/spreadsheets/d/1abcDEMO123/edit'
-    },
-    {
-      id: 'P2',
-      nombre: 'Plantilla_Informe_Financiero_v2',
-      extension: '.gsheet',
-      fechaSubida: '10/03/2026',
-      numHojas: 3,
-      hojas: ['Hoja1', 'Hoja2', 'Hoja3'],
-      estado: 'en_uso',
-      cicloAsociado: 'Ciclo 2026-I',
-      urlSheets: 'https://docs.google.com/spreadsheets/d/2defDEMO456/edit'
-    }
-  ];
+  var plantillas = [];
 
   // FIN: 2. ESTADO GLOBAL
 
   // INICIO: 3. CONTROL FORMULARIO TAREA
-  function toggleFormTarea(show) {
+  async function toggleFormTarea(show) {
+    var tareas = Alpine.store('tareas');
+    if (tareas.publicando || tareas.cancelando) return;
+    if (show && tareas.cicloCargado !== cicloReporte()) {
+      await tareas.cargarPlantillas();
+      if (tareas.errorPlantillas || tareas.cargandoPlantillas) return;
+    }
     if (show && cicloEstadoActual === 'CERRADO') {
       alert('No se puede asignar tareas en un ciclo cerrado. Seleccione el ciclo activo.');
       return;
@@ -105,36 +91,19 @@
   }
 
   function cancelarFormulario() {
+    if (transaccionPublicacionId) return;
     clearTimeout(temporizadorTarea);
     // FA-013/RN-002-08: si había una publicación en proceso, su transacción queda Cancelada.
     if (typeof marcarCancelacionFormulario === 'function') marcarCancelacionFormulario();
-    document.getElementById('form-tarea-element').reset();
+    Alpine.store('tareas').formulario = formularioTareaInicial();
+    Alpine.store('tareas').errorPublicacion = '';
     limpiarErrores();
     resetearBotonCrear();
     toggleFormTarea(false);
   }
 
   function setBotonCreando(creando) {
-    var btn = document.getElementById('btn-crear-tarea');
-    var icon = document.getElementById('icon-crear-tarea');
-    var texto = document.getElementById('texto-crear-tarea');
-
-    if (creando) {
-      btn.disabled = true;
-      btn.classList.add('opacity-70', 'cursor-not-allowed');
-      icon.className = 'fa-solid fa-spinner spinner';
-      texto.innerText = 'Creando…';
-    } else {
-      btn.disabled = false;
-      btn.classList.remove('opacity-70', 'cursor-not-allowed');
-      icon.className = 'fa-solid fa-paper-plane';
-      texto.innerText = 'Crear tarea';
-    }
-    // FA-013 aplica antes del envío (pasos 18 a 24): Cancelar y X se bloquean durante la
-    // publicación, cuando solo procede FA-014 con «Cancelar publicación».
-    ['btn-cancelar-formulario', 'btn-cerrar-formulario'].forEach(function(id) { document.getElementById(id).disabled = creando; });
-    // FA-014: el botón Cancelar publicación solo existe mientras hay una publicación en curso.
-    if (typeof actualizarControlCancelarPublicacion === 'function') actualizarControlCancelarPublicacion(creando);
+    Alpine.store('tareas').publicando = creando;
   }
 
   function resetearBotonCrear() { setBotonCreando(false); }
@@ -158,14 +127,6 @@
     return fechaHora > ahora;
   }
 
-  function actualizarAyudaRangoHojas() {
-    var plantillaId = document.getElementById('input-plantilla').value;
-    var plantilla = plantillas.find(function(p) { return p.id === plantillaId; });
-    document.getElementById('ayuda-rango-hojas').textContent = plantilla && plantilla.hojas
-      ? 'Hojas disponibles, en orden: ' + plantilla.hojas.join(' → ') + '. Puede seleccionar una sola hoja usando el mismo nombre en ambos extremos.'
-      : 'Seleccione una plantilla para consultar sus hojas disponibles.';
-  }
-
   function validarRangoHojas(plantillaId) {
     var plantilla = plantillas.find(function(p) { return p.id === plantillaId; });
     var hojas = plantilla && Array.isArray(plantilla.hojas) ? plantilla.hojas : [];
@@ -183,6 +144,7 @@
 
   function crearTarea(e) {
     e.preventDefault();
+    if (Alpine.store('tareas').publicando || Alpine.store('tareas').cargandoPlantillas) return;
     limpiarErrores();
 
     var titulo = document.getElementById('input-titulo').value.trim();
@@ -208,7 +170,7 @@
       return;
     }
 
-    iniciarPublicacion({ titulo: titulo, descripcion: descripcion, fecha: fecha, hora: hora, plantillaId: plantillaId, ciclo: ciclo });
+    iniciarPublicacion({ titulo: titulo, descripcion: descripcion, fecha: fecha, hora: hora, plantillaId: plantillaId, ciclo: ciclo, hojaInicial: Alpine.store('tareas').formulario.hojaInicial.trim(), hojaFinal: Alpine.store('tareas').formulario.hojaFinal.trim() });
   }
 
   // Pasos 32 a 34; FA-018 («Reintentar») regresa a este punto.
@@ -218,10 +180,13 @@
       alert('Ya existe una publicación en curso. Espere a que finalice antes de iniciar una nueva.');
       return;
     }
+    Alpine.store('tareas').errorPublicacion = '';
+    datos.idOperacion = datos.idOperacion || 'op-' + crypto.randomUUID();
     setBotonCreando(true); // paso 33
     var transaccion = iniciarTransaccion(datos.ciclo, datos.titulo, datos.plantillaId); // paso 34
+    transaccion.datos = datos;
     // Pasos 35 a 42, con FA-014 a FA-019 ante cancelación o fallo.
-    temporizadorTarea = setTimeout(function() { procesarPublicacion(transaccion, datos); }, 1200);
+    procesarPublicacion(transaccion, datos);
   }
 
   function cerrarModalExito() { document.getElementById('modal-exito').classList.add('hidden'); }
@@ -251,7 +216,7 @@
     ciclo: { subtitulo: 'Organización de los periodos de investigación.', titulo: 'Módulo de Ciclos' },
     clases: { subtitulo: 'Clases de investigación y vinculación con Google Classroom.', titulo: 'Módulo de Clases' },
     plantillas: { subtitulo: 'Documentos base para tus actividades de seguimiento.', titulo: 'Módulo de Plantillas Base', alEntrar: renderizarPlantillas },
-    tareas: { subtitulo: 'Gestión e integración con Google Classroom.', titulo: 'Módulo de Tareas', alEntrar: actualizarUICiclo },
+    tareas: { subtitulo: 'Gestión e integración con Google Classroom.', titulo: 'Módulo de Tareas', alEntrar: function() { actualizarUICiclo(); Alpine.store('tareas').cargarPlantillas(); } },
     reportes: { subtitulo: 'Indicadores y producción científica de los investigadores.', titulo: 'Módulo de Reportes de Investigación', alEntrar: inicializarModuloReportes }
   };
 
@@ -268,6 +233,7 @@
   }
 
   function selectCiclo(nombreCiclo, estado) {
+    if (Alpine.store('tareas').publicando) { alert('Espere a que termine la publicación o cancele antes de cambiar de ciclo.'); return; }
     document.getElementById('selected-ciclo-label').innerText = nombreCiclo;
     document.querySelectorAll('#ciclo-dropdown [data-ciclo]').forEach(function(boton) {
       boton.setAttribute('aria-pressed', String(boton.dataset.ciclo === nombreCiclo));
@@ -276,6 +242,8 @@
     document.getElementById('input-clase-context').value = MAPEO_CLASES[nombreCiclo] || 'Sin clase asignada';
 
     cicloEstadoActual = estado;
+    Alpine.store('tareas').cicloCerrado = estado === 'CERRADO';
+    Alpine.store('tareas').cargarPlantillas();
 
     document.getElementById('ciclo-dropdown').classList.add('hidden');
     actualizarUICiclo();
@@ -364,19 +332,9 @@
   }
 
   function actualizarSelectPlantillas() {
-    var select = document.getElementById('input-plantilla');
-    if (!select) return;
-
-    var valorPrevio = select.value;
-    var disponibles = plantillas.filter(function(p) { return p.estado === 'disponible'; });
-
-    select.innerHTML = '<option value="">PLANTILLA: Seleccionar una disponible ↓</option>' +
-      disponibles.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + p.extension + '</option>'; }).join('');
-
-    if (valorPrevio && disponibles.find(function(p) { return p.id === valorPrevio; })) {
-      select.value = valorPrevio;
-    }
-    actualizarAyudaRangoHojas();
+    var tareas = Alpine.store('tareas');
+    tareas.plantillas = plantillas.slice();
+    if (!tareas.disponibles.some(function(p) { return p.id === tareas.formulario.plantillaId; })) tareas.formulario.plantillaId = '';
   }
 
   function abrirModalCrearPlantilla() {
@@ -409,6 +367,7 @@
 
     plantillas.push({
       id: 'P' + (plantillas.length + 1),
+      creadaLocalmente: true,
       nombre: nombre,
       extension: '.gsheet',
       descripcion: descripcion,
@@ -428,8 +387,6 @@
   // FIN: 6. MÓDULO DE PLANTILLAS
 
   // INICIO: 7. REPORTES POR INVESTIGADOR / CARRERA Y LÍNEA DE INVESTIGACIÓN
-  var datosReportesCache = null;
-  var reportesCargando = false;
 
   function cambiarSubmoduloReportes(nombre) {
     Alpine.store('navegacion').cambiarReporte(nombre);
@@ -445,54 +402,7 @@
   }
 
   function inicializarModuloReportes() {
-    // FA-012 y FA-013 de CU-005: repositorio alterado (paso 3). Se ocultan los
-    // reportes cargados y se simula la carga cuyo reintento vuelve a fallar.
-    var condicion = typeof condicionRepositorioReportes === 'function' ? condicionRepositorioReportes() : '';
-    if (condicion) {
-      if (reportesCargando) return;
-      reportesCargando = true;
-      datosReportesCache = null;
-      establecerPanelesReportes(false);
-      document.getElementById('estado-reportes').classList.remove('hidden');
-      textoReporte('estado-reportes', 'Cargando datos de investigación…');
-      document.getElementById('reintentar-reportes').classList.add('hidden');
-      document.querySelectorAll('#view-reportes select').forEach(function(el) { el.disabled = true; });
-      setTimeout(function() {
-        reportesCargando = false;
-        // Si la condición se retiró durante la "carga", el módulo recupera su ruta normal.
-        if (typeof condicionRepositorioReportes !== 'function' || !condicionRepositorioReportes()) {
-          inicializarModuloReportes();
-          return;
-        }
-        document.getElementById('estado-reportes').classList.remove('hidden');
-        document.getElementById('estado-reportes').classList.add('reporte-alerta');
-        textoReporte('estado-reportes', condicion === 'estructura'
-          ? 'No se pudieron cargar los reportes. La estructura de los datos del repositorio es inválida. Verifique el origen de los datos e intente nuevamente.'
-          : 'El repositorio de datos de investigación no está disponible en este momento. Verifique la conexión e intente nuevamente.');
-        document.getElementById('reintentar-reportes').classList.remove('hidden');
-      }, 900);
-      return;
-    }
-    if (reportesCargando || datosReportesCache) return;
-    reportesCargando = true;
-    // FA-013: no se presentan cifras hasta completar una carga válida.
-    establecerPanelesReportes(false);
-    document.getElementById('estado-reportes').classList.remove('hidden');
-    textoReporte('estado-reportes', 'Cargando datos de investigación…');
-    document.getElementById('reintentar-reportes').classList.add('hidden');
-    document.querySelectorAll('#view-reportes select').forEach(function(el) { el.disabled = true; });
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run.withSuccessHandler(renderizarVistaReportes)
-        .withFailureHandler(function(error) {
-          // FA-012: el servidor marca con ESTRUCTURA los datos inválidos; el resto es FA-013.
-          var estructura = /ESTRUCTURA/.test(String(error && error.message || error));
-          mostrarErrorReportes(true, estructura ? 'No se pudieron cargar los reportes. La estructura de los datos del repositorio es inválida. Verifique el origen de los datos e intente nuevamente.' : '');
-        }).obtenerDatosReportes();
-    } else {
-      renderizarVistaReportes({ investigadores: [] });
-      document.getElementById('estado-reportes').classList.remove('hidden');
-      textoReporte('estado-reportes', 'Vista local: la carga de datos requiere ejecutar la aplicación en Google Apps Script.');
-    }
+    return Alpine.store('reportes').cargar();
   }
 
   // Visibilidad de los paneles de reportes: se ocultan cuando no hay datos
@@ -502,13 +412,8 @@
   }
 
   function mostrarErrorReportes(desdeServicio, texto) {
-    reportesCargando = false;
+    Alpine.store('reportes').error = texto || 'No se pudieron cargar los reportes. Intente nuevamente.';
     establecerPanelesReportes(false);
-    document.getElementById('estado-reportes').classList.remove('hidden');
-    document.getElementById('estado-reportes').classList.add('reporte-alerta');
-    // FA-013: fallo del servicio se informa como repositorio no disponible (Reintentar).
-    textoReporte('estado-reportes', texto || (desdeServicio ? 'El repositorio no está disponible. Intente nuevamente.' : 'No se pudieron cargar los reportes. Intenta nuevamente.'));
-    document.getElementById('reintentar-reportes').classList.remove('hidden');
   }
 
   // FIN: 7. REPORTES POR INVESTIGADOR / CARRERA Y LÍNEA DE INVESTIGACIÓN
@@ -527,12 +432,14 @@
   }
 
   function valorReporte(id) {
+    var reporte = Alpine.store('reportes');
+    if (Object.prototype.hasOwnProperty.call(reporte.filtros, id)) return reporte.filtros[id];
     var el = document.getElementById(id);
     return el ? el.value : '';
   }
 
   function investigadoresReporte() {
-    return datosReportesCache ? datosReportesCache.investigadores : [];
+    return Alpine.store('reportes').investigadores;
   }
 
   function unicosReporte(valores) {
@@ -544,29 +451,18 @@
   }
 
   function llenarSelectReporte(id, opciones, etiquetaTodos) {
-    var select = document.getElementById(id);
-    var anterior = select.value;
-    var lista = opciones.map(function(item) { return typeof item === 'string' ? { valor: item, texto: item } : item; });
-    // FA-009 de CU-005: sin opciones compatibles el selector se muestra vacío y deshabilitado.
-    if (!lista.length) lista.push({ valor: '', texto: 'Sin opciones disponibles' });
-    else if (etiquetaTodos) lista.unshift({ valor: '', texto: etiquetaTodos });
-    select.innerHTML = lista.map(function(item) {
-      return '<option value="' + escaparReporte(item.valor) + '">' + escaparReporte(item.texto) + '</option>';
-    }).join('');
-    select.value = lista.some(function(item) { return item.valor === anterior; }) ? anterior : lista[0].valor;
-    select.disabled = opciones.length === 0;
+    Alpine.store('reportes').llenarSelector(id, opciones, etiquetaTodos);
+  }
+
+  function asignarValorReporte(id, valor) {
+    var reporte = Alpine.store('reportes');
+    if (Object.prototype.hasOwnProperty.call(reporte.filtros, id)) reporte.filtros[id] = valor;
+    else document.getElementById(id).value = valor;
   }
 
   function renderizarVistaReportes(data) {
     if (!data || !Array.isArray(data.investigadores)) { mostrarErrorReportes(); return; }
-    establecerPanelesReportes(true);
-    document.getElementById('estado-reportes').classList.remove('reporte-alerta');
-    reportesCargando = false;
-    datosReportesCache = { investigadores: data.investigadores };
-    document.querySelectorAll('#view-reportes select').forEach(function(el) { el.disabled = false; });
-    document.getElementById('estado-reportes').textContent = investigadoresReporte().length ? '' : 'No hay investigadores registrados. Los reportes se muestran sin resultados.';
-    document.getElementById('estado-reportes').classList.toggle('hidden', investigadoresReporte().length > 0);
-    document.getElementById('reintentar-reportes').classList.add('hidden');
+    Alpine.store('reportes').datos = { investigadores: data.investigadores };
     actualizarAvisoReportesCerrado();
     iniciarFiltrosInvestigador();
     llenarSelectReporte('carrera-select', unicosReporte(investigadoresReporte().map(function(inv) { return inv.carrera; })), 'Todas las carreras');
@@ -1128,8 +1024,8 @@
 
   function actualizarReportesPorCiclo() {
     actualizarAvisoReportesCerrado();
-    if (!datosReportesCache) return;
-    document.getElementById('inv-ciclo').value = cicloReporte();
+    if (!Alpine.store('reportes').datos) return;
+    asignarValorReporte('inv-ciclo', cicloReporte());
     actualizarReporteInvestigador();
     actualizarReporteCarrera();
   }
@@ -1503,13 +1399,24 @@
   function renderizarColeccionInv(tipo) {
     var pagina = paginaColeccionInv(tipo);
     var contenedor = document.getElementById(idElementoColeccionInv(tipo));
-    if (tipoBaseColeccionInv(tipo) === 'publicaciones') contenedor.innerHTML = tablaColeccionInv(tipo, pagina.visibles, 'principal', pagina.inicio, false);
+    if (tipoBaseColeccionInv(tipo) === 'publicaciones') {
+      var tabla = Alpine.store('reportes').tablas[tipo];
+      tabla.columnas = columnasVisiblesColeccionInv(tipo, pagina.visibles);
+      tabla.filas = pagina.visibles.map(function(item, indice) { return { clave: String(item.id || item.titulo || 'registro') + '-' + (pagina.inicio + indice), item: item }; });
+      tabla.total = pagina.lista.length;
+      tabla.pagina = estadoColeccionInv(tipo).pagina;
+      tabla.paginas = pagina.paginas;
+      tabla.mensaje = '';
+      tabla.orden = estadoColeccionInv(tipo).columna;
+      tabla.direccion = estadoColeccionInv(tipo).direccion;
+      tabla.filtros = Object.assign({}, estadoColeccionInv(tipo).filtrosCabecera);
+    }
     else contenedor.innerHTML = pagina.visibles.length ? pagina.visibles.map(function(item, indice) {
       return '<article class="reporte-detalle"><button type="button" class="reporte-abrir-detalle" aria-haspopup="dialog" aria-controls="reporte-dialogo-detalle" onclick="abrirColeccionInv(\'' + tipo + '\',' + (pagina.inicio + indice) + ')"><span><strong>' + escaparReporte(item.titulo || item.nombre || 'Sin título') + '</strong><small>' + escaparReporte(textoColeccionInv(datoColeccionInv(item, tipoBaseColeccionInv(tipo) === 'proyectos' ? 'codigo' : 'tipo'))) + ' · ' + escaparReporte(fechaReporte(item.fecha)) + '</small>' + etiquetaEstadoInv(item.estado) + '</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></article>';
     }).join('') : '<p class="reporte-vacio">No hay ' + tipoBaseColeccionInv(tipo) + ' que coincidan con la búsqueda y los filtros.</p>';
     var filtrosActivos = Object.keys(estadoColeccionInv(tipo).filtrosCabecera).filter(function(clave) { return estadoColeccionInv(tipo).filtrosCabecera[clave].length; }).length;
-    document.getElementById(idElementoColeccionInv(tipo, 'contador')).textContent = pagina.lista.length + (pagina.lista.length === 1 ? ' resultado encontrado' : ' resultados encontrados') + (filtrosActivos ? ' · ' + filtrosActivos + ' filtros de columna' : '');
-    document.getElementById(idElementoColeccionInv(tipo, 'pie')).innerHTML = pieColeccionInv(tipo, pagina);
+    if (tipoBaseColeccionInv(tipo) !== 'publicaciones') document.getElementById(idElementoColeccionInv(tipo, 'contador')).textContent = pagina.lista.length + (pagina.lista.length === 1 ? ' resultado encontrado' : ' resultados encontrados') + (filtrosActivos ? ' · ' + filtrosActivos + ' filtros de columna' : '');
+    if (tipoBaseColeccionInv(tipo) !== 'publicaciones') document.getElementById(idElementoColeccionInv(tipo, 'pie')).innerHTML = pieColeccionInv(tipo, pagina);
     if (dialogoColeccionInv && dialogoColeccionInv.tipo === tipo && document.getElementById('reporte-dialogo-detalle').open) renderizarDialogoColeccionInv();
   }
 
@@ -1582,7 +1489,8 @@
     enlace.click();
     enlace.remove();
     setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-    document.getElementById(idElementoColeccionInv(tipo, 'contador')).textContent = registrosColeccionInv(tipo).length + ' registros exportados a CSV';
+    if (tipoBaseColeccionInv(tipo) === 'publicaciones') Alpine.store('reportes').tablas[tipo].mensaje = registrosColeccionInv(tipo).length + ' registros exportados a CSV';
+    else document.getElementById(idElementoColeccionInv(tipo, 'contador')).textContent = registrosColeccionInv(tipo).length + ' registros exportados a CSV';
   }
 
   function renderizarProduccionReporte(prefijo, datos) {
@@ -1622,7 +1530,7 @@
     });
     ciclos.push(cicloReporte());
     llenarSelectReporte('inv-ciclo', unicosReporte(ciclos).sort().reverse());
-    document.getElementById('inv-ciclo').value = cicloReporte();
+    asignarValorReporte('inv-ciclo', cicloReporte());
   }
 
   function sincronizarCicloInvestigador() {
@@ -1739,12 +1647,13 @@
     var carrera = tipo.indexOf('carrera-') === 0;
     var dialogo = document.getElementById((carrera ? 'carrera' : 'inv') + '-dialogo-' + tipoBaseColeccionInv(tipo));
     dialogo.querySelectorAll('select, input').forEach(function(control) {
-      control.value = control.tagName === 'SELECT' ? control.options[0].value : '';
+      asignarValorReporte(control.id, control.tagName === 'SELECT' ? Alpine.store('reportes').opciones[control.id][0].valor : '');
     });
     var estado = estadoColeccionInv(tipo);
     estado.busqueda = '';
     estado.filtrosCabecera = {};
-    document.getElementById(idElementoColeccionInv(tipo, 'buscar')).value = '';
+    if (tipoBaseColeccionInv(tipo) === 'publicaciones') Alpine.store('reportes').busquedas[tipo] = '';
+    else document.getElementById(idElementoColeccionInv(tipo, 'buscar')).value = '';
     if (carrera) actualizarReporteCarrera(); else actualizarReporteInvestigador();
   }
 
@@ -2237,37 +2146,26 @@
 
   // FA-007: URL del consolidado ya localizado por ciclo en esta sesión.
   var CONSOLIDADOS_CICLO = {};
-  // Solo para la vista local sin Apps Script; en el despliegue lo resuelve obtenerConsolidadoCiclo.
-  var CONSOLIDADO_GENERAL = 'https://docs.google.com/spreadsheets/d/1JOwi7O7ZdHK16TMNMydyng7rG6aaONDSctEYa1vMjl0/edit?usp=sharing';
-
-  function abrirGoogleSheetsReporte() {
-    // FA-008 de CU-005: la apertura del consolidado es una operación protegida; si la
-    // sesión expiró se bloquea, se cierra la sesión y se solicita autenticarse otra vez.
-    if (typeof probarOperacionProtegida === 'function' && !probarOperacionProtegida()) return;
+  async function abrirGoogleSheetsReporte() {
+    var reporte = Alpine.store('reportes');
+    if (reporte.abriendoConsolidado || !probarOperacionProtegida()) return;
     var ciclo = cicloReporte();
-    // La pestaña se abre de inmediato (antes de la llamada asíncrona) para que el
-    // navegador no la bloquee; con 'noopener' window.open devolvería null.
     var ventana = window.open('', '_blank');
-    if (!ventana) { alert('No se pudo abrir el consolidado. El navegador bloqueó las ventanas emergentes. Permita las ventanas emergentes e intente nuevamente.'); return; }
+    if (!ventana) { alert('Permita las ventanas emergentes para abrir el consolidado.'); return; }
     ventana.opener = null;
-    // FA-017: se registra la incidencia, se comprueba si el archivo ya existe y se
-    // ofrece reintentar (regresa a FA-007) o volver a Reportes.
-    function fallo() {
-      ventana.close();
-      registrarAuditoria('Consolidado', 'Error de permisos, cuota o conexión con Google Sheets o Drive al abrir el consolidado.', ciclo);
-      avisoSistema('No se pudo abrir el consolidado por un error de permisos, cuota o conexión con Google Sheets o Drive. ' + (CONSOLIDADOS_CICLO[ciclo] ? 'El consolidado del ciclo ya existe; el reintento no creará otro.' : 'No se creó ningún archivo.'), 'Reintentar', abrirGoogleSheetsReporte);
-    }
-    // FA-007 paso 4: abre la URL autorizada en la otra pestaña.
-    function abrir(url) {
+    reporte.abriendoConsolidado = true;
+    try {
+      if (condicionConsolidadoError()) throw new Error('Condición de error de permisos, cuota o conexión.');
+      var url = await llamarServidor('obtenerConsolidadoCiclo', [ciclo]);
+      if (!urlReporte(url)) throw new Error('El servidor no devolvió una URL válida.');
       CONSOLIDADOS_CICLO[ciclo] = url;
       ventana.location.href = url;
-    }
-    if (typeof condicionConsolidadoError === 'function' && condicionConsolidadoError()) { fallo(); return; }
-    // FA-007 pasos 2 y 3: el servidor localiza, crea si falta y registra el consolidado del ciclo.
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run.withSuccessHandler(abrir).withFailureHandler(fallo).obtenerConsolidadoCiclo(ciclo);
-    } else {
-      abrir(CONSOLIDADOS_CICLO[ciclo] || CONSOLIDADO_GENERAL); // vista local sin Apps Script
+    } catch (error) {
+      ventana.close();
+      registrarAuditoria('Consolidado', String(error.message || error), ciclo);
+      avisoSistema('No se pudo abrir el consolidado. Verifique los permisos, la cuota o la conexión con Google. No se pudo confirmar el estado del archivo; el reintento comprobará si existe.', 'Reintentar', abrirGoogleSheetsReporte);
+    } finally {
+      reporte.abriendoConsolidado = false;
     }
   }
 
@@ -2281,7 +2179,7 @@
     try { localStorage.setItem('empiria-tema', oscuro ? 'oscuro' : 'claro'); } catch (e) {}
     actualizarBotonTema();
     // Los gráficos leen los colores de los tokens al dibujarse.
-    if (datosReportesCache) actualizarReportesPorCiclo();
+    if (Alpine.store('reportes').datos) actualizarReportesPorCiclo();
   }
 
   function actualizarBotonTema() {

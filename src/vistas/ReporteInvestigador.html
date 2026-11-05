@@ -11,33 +11,33 @@
 <fieldset class="inv-grupo-filtros">
 <legend>Perfil académico y RENACYT</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Carrera profesional</span><select id="inv-filtro-carrera" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Línea de investigación</span><select id="inv-filtro-linea" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Grupo RENACYT</span><select id="inv-filtro-grupoRenacyt" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Nivel RENACYT</span><select id="inv-filtro-nivel" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Investigador (nombre o ID)</span><select id="select-investigador" onchange="cargarDatosInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Carrera profesional</span><select id="inv-filtro-carrera" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-carrera']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-carrera']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-carrera'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Línea de investigación</span><select id="inv-filtro-linea" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-linea']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-linea']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-linea'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Grupo RENACYT</span><select id="inv-filtro-grupoRenacyt" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-grupoRenacyt']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-grupoRenacyt']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-grupoRenacyt'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Nivel RENACYT</span><select id="inv-filtro-nivel" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-nivel']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-nivel']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-nivel'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Investigador (nombre o ID)</span><select id="select-investigador" @change="cargarDatosInvestigador()" x-model="$store.reportes.filtros['select-investigador']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['select-investigador']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['select-investigador'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <fieldset class="inv-grupo-filtros">
 <legend>Dedicación y disponibilidad</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Categoría docente</span><select id="inv-filtro-categoria" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Tipo de dedicación</span><select id="inv-filtro-dedicacion" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Disponibilidad semanal</span><select id="inv-filtro-dia" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Categoría docente</span><select id="inv-filtro-categoria" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-categoria']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-categoria']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-categoria'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Tipo de dedicación</span><select id="inv-filtro-dedicacion" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-dedicacion']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-dedicacion']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-dedicacion'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Disponibilidad semanal</span><select id="inv-filtro-dia" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-dia']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-dia']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-dia'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <fieldset class="inv-grupo-filtros">
 <legend>Pertenencia</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Grupo de investigación</span><select id="inv-filtro-grupo" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Semillero</span><select id="inv-filtro-semillero" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Grupo de investigación</span><select id="inv-filtro-grupo" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-grupo']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-grupo']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-grupo'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Semillero</span><select id="inv-filtro-semillero" @change="filtrarInvestigadoresReporte()" x-model="$store.reportes.filtros['inv-filtro-semillero']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-filtro-semillero']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-filtro-semillero'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <fieldset class="inv-grupo-filtros">
 <legend>Periodo de consulta</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Ciclo académico</span><select id="inv-ciclo" onchange="sincronizarCicloInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Periodo</span><select id="inv-periodo" onchange="actualizarReporteInvestigador()"><option value="semestre">Semestre</option><option value="año">Año</option></select></label>
+<label class="reporte-campo"><span>Ciclo académico</span><select id="inv-ciclo" @change="sincronizarCicloInvestigador()" x-model="$store.reportes.filtros['inv-ciclo']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-ciclo']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-ciclo'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Periodo</span><select id="inv-periodo" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-periodo']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-periodo']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;semestre&quot;, &quot;texto&quot;: &quot;Semestre&quot;}, {&quot;valor&quot;: &quot;año&quot;, &quot;texto&quot;: &quot;Año&quot;}], &quot;valor&quot;: &quot;semestre&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-periodo'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <div class="inv-acciones-descarga"><button class="boton-primario" onclick="document.getElementById('inv-dialogo-generales').close()" type="button">Listo</button></div>
@@ -103,7 +103,7 @@
 </div>
 <div class="investigador-produccion-grid">
 <!-- INICIO: investigador-seccion-publicaciones -->
-<section aria-labelledby="inv-titulo-publicaciones" class="glass-card investigador-publicaciones space-y-4" id="inv-seccion-publicaciones">
+<section aria-labelledby="inv-titulo-publicaciones" class="glass-card investigador-publicaciones space-y-4" id="inv-seccion-publicaciones" x-data="{ tipoPublicaciones: 'publicaciones' }">
 <div class="investigador-titulo-publicaciones inv-cabecera-seccion">
 <div>
 <h3 id="inv-titulo-publicaciones">Publicaciones</h3>
@@ -121,11 +121,11 @@
 <fieldset class="inv-grupo-filtros">
 <legend>Clasificación y publicación</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Tipo</span><select id="inv-pub-tipo" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Estado de publicación</span><select id="inv-pub-estado" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Indexación</span><select id="inv-pub-indexacion" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Cuartil</span><select id="inv-pub-cuartil" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Ranking de conferencia</span><select id="inv-pub-ranking" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Tipo</span><select id="inv-pub-tipo" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pub-tipo']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pub-tipo']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pub-tipo'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Estado de publicación</span><select id="inv-pub-estado" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pub-estado']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pub-estado']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pub-estado'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Indexación</span><select id="inv-pub-indexacion" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pub-indexacion']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pub-indexacion']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pub-indexacion'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Cuartil</span><select id="inv-pub-cuartil" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pub-cuartil']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pub-cuartil']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pub-cuartil'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Ranking de conferencia</span><select id="inv-pub-ranking" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pub-ranking']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pub-ranking']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pub-ranking'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <fieldset class="inv-grupo-filtros">
@@ -138,27 +138,31 @@
 <fieldset class="inv-grupo-filtros">
 <legend>Ubicación y evidencia</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>País o ciudad</span><select id="inv-pub-lugar" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Evidencia</span><select id="inv-pub-evidencia" onchange="actualizarReporteInvestigador()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
+<label class="reporte-campo"><span>País o ciudad</span><select id="inv-pub-lugar" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pub-lugar']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pub-lugar']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pub-lugar'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Evidencia</span><select id="inv-pub-evidencia" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pub-evidencia']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pub-evidencia']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}, {&quot;valor&quot;: &quot;si&quot;, &quot;texto&quot;: &quot;Con evidencia&quot;}, {&quot;valor&quot;: &quot;no&quot;, &quot;texto&quot;: &quot;Sin evidencia&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pub-evidencia'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <fieldset class="inv-grupo-filtros">
 <legend>Ordenamiento</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-pub-orden" onchange="actualizarReporteInvestigador()"><option value="fecha">Fecha</option><option value="impacto">Impacto</option><option value="cuartil">Cuartil</option></select></label>
+<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-pub-orden" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pub-orden']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pub-orden']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;fecha&quot;, &quot;texto&quot;: &quot;Fecha&quot;}, {&quot;valor&quot;: &quot;impacto&quot;, &quot;texto&quot;: &quot;Impacto&quot;}, {&quot;valor&quot;: &quot;cuartil&quot;, &quot;texto&quot;: &quot;Cuartil&quot;}], &quot;valor&quot;: &quot;fecha&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pub-orden'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('publicaciones')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('inv-dialogo-publicaciones').close()" type="button">Listo</button></div>
 </dialog>
 <!-- FIN: investigador-dialogo-publicaciones -->
 <div class="inv-herramientas">
-<label class="inv-buscador" for="inv-buscar-publicaciones"><span class="sr-only">Buscar publicaciones por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="inv-buscar-publicaciones" oninput="buscarColeccionInv('publicaciones', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
-<label class="inv-tamano" for="inv-tamano-publicaciones">Mostrar<select id="inv-tamano-publicaciones" onchange="tamanoColeccionInv('publicaciones', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<label class="inv-buscador" for="inv-buscar-publicaciones"><span class="sr-only">Buscar publicaciones por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="inv-buscar-publicaciones" x-model="$store.reportes.busquedas['publicaciones']" @input="buscarColeccionInv('publicaciones', $event.target.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
+<label class="inv-tamano" for="inv-tamano-publicaciones">Mostrar<select id="inv-tamano-publicaciones" @change="tamanoColeccionInv('publicaciones', $event.target.value)" x-model="$store.reportes.filtros['inv-tamano-publicaciones']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-tamano-publicaciones']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;10&quot;, &quot;texto&quot;: &quot;10&quot;}, {&quot;valor&quot;: &quot;25&quot;, &quot;texto&quot;: &quot;25&quot;}, {&quot;valor&quot;: &quot;50&quot;, &quot;texto&quot;: &quot;50&quot;}], &quot;valor&quot;: &quot;10&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-tamano-publicaciones'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 <button aria-label="Exportar publicaciones filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('publicaciones')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
 </div>
-<p aria-live="polite" class="reporte-nota inv-contador-coleccion" id="inv-contador-publicaciones" role="status"></p>
-<div aria-label="Publicaciones del investigador, tabla con desplazamiento horizontal" class="reporte-tabla" id="inv-publicaciones" role="region" tabindex="0"><table><tbody id="tabla-publicaciones-body"></tbody></table></div>
-<div class="inv-pie-coleccion" id="inv-pie-publicaciones"></div>
+<p aria-live="polite" class="reporte-nota inv-contador-coleccion" id="inv-contador-publicaciones" x-text="$store.reportes.tablas['publicaciones'].mensaje || ($store.reportes.tablas['publicaciones'].total + ' resultados encontrados')" role="status"></p>
+<div aria-label="Publicaciones del investigador, tabla con desplazamiento horizontal" class="reporte-tabla" id="inv-publicaciones" role="region" tabindex="0"><?!= include('TablaPublicaciones'); ?></div>
+<div class="inv-pie-coleccion" id="inv-pie-publicaciones"><div class="inv-paginacion">
+<button type="button" aria-label="Página anterior" :disabled="$store.reportes.tablas['publicaciones'].pagina === 1" @click="cambiarPaginaColeccionInv('publicaciones', -1)">‹</button>
+<span x-text="$store.reportes.tablas['publicaciones'].pagina + ' / ' + $store.reportes.tablas['publicaciones'].paginas"></span>
+<button type="button" aria-label="Página siguiente" :disabled="$store.reportes.tablas['publicaciones'].pagina === $store.reportes.tablas['publicaciones'].paginas" @click="cambiarPaginaColeccionInv('publicaciones', 1)">›</button>
+</div></div>
 </section>
 <!-- FIN: investigador-seccion-publicaciones -->
 <!-- INICIO: investigador-seccion-proyectos -->
@@ -177,17 +181,17 @@
 <fieldset class="inv-grupo-filtros">
 <legend>Características del proyecto</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Financiamiento</span><select id="inv-pro-financiamiento" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Estado</span><select id="inv-pro-estado" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Tipo de proyecto</span><select id="inv-pro-tipoProyecto" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Área temática</span><select id="inv-pro-area" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Financiamiento</span><select id="inv-pro-financiamiento" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pro-financiamiento']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pro-financiamiento']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pro-financiamiento'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Estado</span><select id="inv-pro-estado" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pro-estado']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pro-estado']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pro-estado'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Tipo de proyecto</span><select id="inv-pro-tipoProyecto" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pro-tipoProyecto']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pro-tipoProyecto']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pro-tipoProyecto'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Área temática</span><select id="inv-pro-area" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pro-area']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pro-area']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pro-area'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <fieldset class="inv-grupo-filtros">
 <legend>Participación y financiamiento</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Rol del investigador</span><select id="inv-pro-rol" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Entidad financiadora</span><select id="inv-pro-financiador" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Rol del investigador</span><select id="inv-pro-rol" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pro-rol']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pro-rol']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pro-rol'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Entidad financiadora</span><select id="inv-pro-financiador" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pro-financiador']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pro-financiador']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pro-financiador'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 <label class="reporte-campo"><span>Presupuesto mínimo</span><input id="inv-pro-min" min="0" oninput="actualizarReporteInvestigador()" type="number"/></label>
 <label class="reporte-campo"><span>Presupuesto máximo</span><input id="inv-pro-max" min="0" oninput="actualizarReporteInvestigador()" type="number"/></label>
 </div>
@@ -195,8 +199,8 @@
 <fieldset class="inv-grupo-filtros">
 <legend>Evidencia y ordenamiento</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Evidencia</span><select id="inv-pro-evidencia" onchange="actualizarReporteInvestigador()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
-<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-pro-orden" onchange="actualizarReporteInvestigador()"><option value="fecha">Fecha</option><option value="presupuesto">Presupuesto</option><option value="avance">Avance</option></select></label>
+<label class="reporte-campo"><span>Evidencia</span><select id="inv-pro-evidencia" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pro-evidencia']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pro-evidencia']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}, {&quot;valor&quot;: &quot;si&quot;, &quot;texto&quot;: &quot;Con evidencia&quot;}, {&quot;valor&quot;: &quot;no&quot;, &quot;texto&quot;: &quot;Sin evidencia&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pro-evidencia'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-pro-orden" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-pro-orden']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-pro-orden']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;fecha&quot;, &quot;texto&quot;: &quot;Fecha&quot;}, {&quot;valor&quot;: &quot;presupuesto&quot;, &quot;texto&quot;: &quot;Presupuesto&quot;}, {&quot;valor&quot;: &quot;avance&quot;, &quot;texto&quot;: &quot;Avance&quot;}], &quot;valor&quot;: &quot;fecha&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-pro-orden'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('proyectos')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('inv-dialogo-proyectos').close()" type="button">Listo</button></div>
@@ -204,7 +208,7 @@
 <!-- FIN: investigador-dialogo-proyectos -->
 <div class="inv-herramientas">
 <label class="inv-buscador" for="inv-buscar-proyectos"><span class="sr-only">Buscar proyectos por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="inv-buscar-proyectos" oninput="buscarColeccionInv('proyectos', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
-<label class="inv-tamano" for="inv-tamano-proyectos"><span class="sr-only">Registros por página</span><select id="inv-tamano-proyectos" onchange="tamanoColeccionInv('proyectos', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<label class="inv-tamano" for="inv-tamano-proyectos"><span class="sr-only">Registros por página</span><select id="inv-tamano-proyectos" @change="tamanoColeccionInv('proyectos', $event.target.value)" x-model="$store.reportes.filtros['inv-tamano-proyectos']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-tamano-proyectos']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;10&quot;, &quot;texto&quot;: &quot;10&quot;}, {&quot;valor&quot;: &quot;25&quot;, &quot;texto&quot;: &quot;25&quot;}, {&quot;valor&quot;: &quot;50&quot;, &quot;texto&quot;: &quot;50&quot;}], &quot;valor&quot;: &quot;10&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-tamano-proyectos'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 <button aria-label="Exportar proyectos filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('proyectos')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
 <button onclick="abrirColeccionInv('proyectos')" type="button">Ver tabla</button>
 </div>
@@ -229,23 +233,23 @@
 <fieldset class="inv-grupo-filtros">
 <legend>Características del evento</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Estado</span><select id="inv-eve-estado" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Tipo de evento</span><select id="inv-eve-tipo" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>Modalidad</span><select id="inv-eve-modalidad" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Estado</span><select id="inv-eve-estado" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-eve-estado']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-eve-estado']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-eve-estado'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Tipo de evento</span><select id="inv-eve-tipo" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-eve-tipo']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-eve-tipo']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-eve-tipo'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Modalidad</span><select id="inv-eve-modalidad" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-eve-modalidad']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-eve-modalidad']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-eve-modalidad'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <fieldset class="inv-grupo-filtros">
 <legend>Participación y ubicación</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Rol</span><select id="inv-eve-rol" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
-<label class="reporte-campo"><span>País o ciudad</span><select id="inv-eve-lugar" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Rol</span><select id="inv-eve-rol" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-eve-rol']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-eve-rol']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-eve-rol'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>País o ciudad</span><select id="inv-eve-lugar" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-eve-lugar']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-eve-lugar']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-eve-lugar'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <fieldset class="inv-grupo-filtros">
 <legend>Evidencia y ordenamiento</legend>
 <div class="inv-filtros">
-<label class="reporte-campo"><span>Evidencia</span><select id="inv-eve-evidencia" onchange="actualizarReporteInvestigador()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
-<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-eve-orden" onchange="actualizarReporteInvestigador()"><option value="fecha">Fecha</option></select></label>
+<label class="reporte-campo"><span>Evidencia</span><select id="inv-eve-evidencia" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-eve-evidencia']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-eve-evidencia']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;&quot;, &quot;texto&quot;: &quot;Todos&quot;}, {&quot;valor&quot;: &quot;si&quot;, &quot;texto&quot;: &quot;Con evidencia&quot;}, {&quot;valor&quot;: &quot;no&quot;, &quot;texto&quot;: &quot;Sin evidencia&quot;}], &quot;valor&quot;: &quot;&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-eve-evidencia'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
+<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-eve-orden" @change="actualizarReporteInvestigador()" x-model="$store.reportes.filtros['inv-eve-orden']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-eve-orden']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;fecha&quot;, &quot;texto&quot;: &quot;Fecha&quot;}], &quot;valor&quot;: &quot;fecha&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-eve-orden'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 </div>
 </fieldset>
 <div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('eventos')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('inv-dialogo-eventos').close()" type="button">Listo</button></div>
@@ -253,7 +257,7 @@
 <!-- FIN: investigador-dialogo-eventos -->
 <div class="inv-herramientas">
 <label class="inv-buscador" for="inv-buscar-eventos"><span class="sr-only">Buscar eventos por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="inv-buscar-eventos" oninput="buscarColeccionInv('eventos', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
-<label class="inv-tamano" for="inv-tamano-eventos"><span class="sr-only">Registros por página</span><select id="inv-tamano-eventos" onchange="tamanoColeccionInv('eventos', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<label class="inv-tamano" for="inv-tamano-eventos"><span class="sr-only">Registros por página</span><select id="inv-tamano-eventos" @change="tamanoColeccionInv('eventos', $event.target.value)" x-model="$store.reportes.filtros['inv-tamano-eventos']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-tamano-eventos']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;10&quot;, &quot;texto&quot;: &quot;10&quot;}, {&quot;valor&quot;: &quot;25&quot;, &quot;texto&quot;: &quot;25&quot;}, {&quot;valor&quot;: &quot;50&quot;, &quot;texto&quot;: &quot;50&quot;}], &quot;valor&quot;: &quot;10&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-tamano-eventos'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select></label>
 <button aria-label="Exportar eventos filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('eventos')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
 <button onclick="abrirColeccionInv('eventos')" type="button">Ver tabla</button>
 </div>
@@ -282,12 +286,7 @@
 <label><input checked="" name="seccion-reporte" type="checkbox" value="eventos"/> Eventos</label>
 </fieldset>
 <label class="reporte-campo" for="inv-formato-descarga"><span>Formato</span>
-<select id="inv-formato-descarga">
-<option value="html">HTML (reporte visual)</option>
-<option value="csv">CSV (datos y métricas)</option>
-<option value="json">JSON (datos estructurados)</option>
-<option value="pdf">PDF (imprimir / guardar como PDF)</option>
-</select>
+<select id="inv-formato-descarga" x-model="$store.reportes.filtros['inv-formato-descarga']" :disabled="$store.reportes.cargando || $store.reportes.sinOpciones['inv-formato-descarga']" data-opciones="{&quot;opciones&quot;: [{&quot;valor&quot;: &quot;html&quot;, &quot;texto&quot;: &quot;HTML (reporte visual)&quot;}, {&quot;valor&quot;: &quot;csv&quot;, &quot;texto&quot;: &quot;CSV (datos y métricas)&quot;}, {&quot;valor&quot;: &quot;json&quot;, &quot;texto&quot;: &quot;JSON (datos estructurados)&quot;}, {&quot;valor&quot;: &quot;pdf&quot;, &quot;texto&quot;: &quot;PDF (imprimir / guardar como PDF)&quot;}], &quot;valor&quot;: &quot;html&quot;}"><template x-for="opcion in ($store.reportes.opciones['inv-formato-descarga'] || [])" :key="opcion.valor"><option :value="opcion.valor" x-text="opcion.texto"></option></template></select>
 </label>
 <p aria-live="polite" class="reporte-nota" id="inv-descarga-estado" role="status"></p>
 <div class="inv-acciones-descarga">

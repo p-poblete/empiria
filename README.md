@@ -24,10 +24,25 @@ Crea en el editor de Apps Script los archivos de `src/`, conservando sus nombres
 
 Las llamadas `include('…')` y `createTemplateFromFile('Index')` conservan los nombres del proyecto de Apps Script. Las carpetas organizan el repositorio local.
 
-Previsualiza mediante **Deploy → Test deployments** con un despliegue de aplicación web. Abrir `Index.html` directamente no evalúa las inclusiones del servidor. No hay un comando de compilación ni un ejecutor de pruebas configurados.
+Previsualiza mediante **Deploy → Test deployments** con un despliegue de aplicación web. Abrir `Index.html` directamente no evalúa las inclusiones del servidor. No hay compilación de la aplicación; las pruebas locales se describen abajo.
 
 ## Actualización con Alpine.js
 
-El [plan de migración](docs/PLAN_MIGRACION_ALPINE.md) recoge las etapas, criterios de evaluación y estado de avance para CU-002 y CU-005. La primera entrega incorpora navegación reactiva con Alpine 3.17.5; carga y poblamiento reactivo desde el servidor siguen pendientes.
+El [plan de migración](docs/PLAN_MIGRACION_ALPINE.md) recoge las etapas, criterios de evaluación y estado de avance para CU-002 y CU-005. Ambos CUs incorporan navegación, estados de carga y poblamiento reactivo con Alpine 3.17.5. La [guía del código](docs/GUIA_ALPINE.md) explica el recorrido de cada petición y las directivas utilizadas.
 
-Al copiar esta versión al editor de Apps Script, incluye el nuevo HTML `Navegacion`, además de los archivos existentes. Alpine se carga desde CDN y requiere conexión a Internet.
+Al copiar esta versión al editor de Apps Script, incluye los HTML `Navegacion`, `Reactivos` y `TablaPublicaciones`, además de los archivos existentes. Alpine se carga desde CDN y requiere conexión a Internet.
+
+## Pruebas locales
+
+Con Node.js 22 o superior:
+
+```bash
+npm ci
+npm test
+npx playwright install chromium
+npm run test:browser
+```
+
+Las pruebas componen los HTML, ejecutan Alpine real y prueban los endpoints bajo dobles de los servicios de Google. No despliegan ni necesitan una cuenta de Google. GitHub Actions ejecuta estas comprobaciones al subir cambios y en los pull requests.
+
+La publicación es una simulación de Classroom; el acceso de demostración no autentica usuarios. El despliegue en Apps Script queda pospuesto. La configuración y los límites de esta demo están en la guía.

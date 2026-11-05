@@ -19,8 +19,10 @@ solapamiento para conservar la continuidad.
 - Generación de tablas divididas con las colecciones de BaseDatos.gs.
 - Generación del documento sin investigadores ni publicaciones.
 
-No se consiguió generar un PDF con el navegador local de prueba. La revisión
-visual de la paginación queda pendiente en la vista previa de impresión.
+Actualización del 2026-11-05: la prueba de navegador de la migración a Alpine genera
+un PDF real con Chromium a partir del mismo documento HTML usado para imprimir,
+y verifica su cabecera. Esto comprueba la generación local; la revisión detallada
+de paginación y el diálogo de impresión en Apps Script quedan pendientes.
 
 ## Validación en Google Apps Script
 
@@ -36,3 +38,5 @@ visual de la paginación queda pendiente en la vista previa de impresión.
 7. Probar BaseDatos.gs con `investigadores: []` y restaurar después los datos
    originales. Este checkout usa la colección vacía en lugar de la antigua
    bandera `SIMULAR_SIN_INVESTIGADORES`.
+
+Las pruebas automatizadas se ejecutan con `npm run test:browser`. El despliegue y la validación en Google se pospusieron por decisión del usuario.

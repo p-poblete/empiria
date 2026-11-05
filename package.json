@@ -1,0 +1,14 @@
+{
+  "name": "empiria",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Comprobaciones de la demo Empiria en Google Apps Script",
+  "scripts": {
+    "test": "node --test tests/servidor.test.cjs",
+    "test:browser": "node tests/navegador.cjs"
+  },
+  "devDependencies": {
+    "alpinejs": "3.17.5",
+    "playwright": "1.65.0"
+  }
+}

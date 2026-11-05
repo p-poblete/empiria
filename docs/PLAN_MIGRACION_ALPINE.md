@@ -25,38 +25,38 @@ La evaluación exige navegación con Alpine, estados reactivos durante llamadas 
 - [x] Conservar el contexto del ciclo y los formularios al navegar.
 - [x] Migrar las dos pestañas de reportes y sus acciones específicas, manteniendo navegación por teclado.
 - [x] Mantener los flujos alternativos que llaman a `switchTab` y `cambiarSubmoduloReportes`.
-- [ ] Confirmar el funcionamiento en un despliegue real de Apps Script.
+- [ ] Confirmar el funcionamiento en un despliegue real de Apps Script. **Pospuesto por decisión del usuario; no forma parte de esta entrega local.**
 
 ### 3. CU-002: Tareas
 
-- [ ] Cargar las plantillas disponibles del ciclo mediante una llamada real a Apps Script.
-- [ ] Renderizar opciones con `x-for` y enlazar el formulario con `x-model`.
-- [ ] Mostrar carga, errores y reintento al consultar plantillas.
-- [ ] Mover la publicación simulada a una función del servidor, manteniendo su identificación como simulación de Classroom.
-- [ ] Mostrar «Creando tarea…», bloquear envíos duplicados y restaurar controles al recibir éxito o error.
-- [ ] Adaptar los flujos alternativos y de cancelación al contrato asíncrono.
+- [x] Cargar las plantillas disponibles del ciclo mediante una llamada real a Apps Script.
+- [x] Renderizar opciones con `x-for` y enlazar el formulario con `x-model`.
+- [x] Mostrar carga, errores y reintento al consultar plantillas.
+- [x] Mover la publicación simulada a una función del servidor, manteniendo su identificación como simulación de Classroom.
+- [x] Mostrar «Creando tarea…», bloquear envíos duplicados y restaurar controles al recibir éxito o error.
+- [x] Adaptar los flujos alternativos y de cancelación al contrato asíncrono.
 
 ### 4. CU-005: Reportes
 
-- [ ] Reutilizar `obtenerDatosReportes()` como fuente del estado reactivo.
-- [ ] Controlar carga, error y reintento mediante Alpine.
-- [ ] Poblar investigadores y tablas de publicaciones con `x-for` en las dos modalidades.
-- [ ] Enlazar filtros con `x-model` y conservar gráficos, detalles y descargas.
-- [ ] Eliminar las mutaciones imperativas de los mismos elementos migrados.
+- [x] Reutilizar `obtenerDatosReportes()` como fuente del estado reactivo.
+- [x] Controlar carga, error y reintento mediante Alpine.
+- [x] Poblar investigadores y tablas de publicaciones con `x-for` en las dos modalidades.
+- [x] Enlazar filtros con `x-model` y conservar gráficos, detalles y descargas.
+- [x] Eliminar las mutaciones imperativas de los mismos elementos migrados.
 
-### 5. Validación
+### 5. Validación local y posterior integración
 
-- [ ] Validar ambos CUs completos: navegación, carga, éxito, error, vacío y doble envío.
-- [ ] Comprobar los flujos alternativos y la conservación del ciclo seleccionado.
-- [ ] Verificar llamadas reales y permisos en Apps Script; los servicios simulados locales no sustituyen esa prueba.
+- [x] Validar localmente ambos CUs con los endpoints reales bajo dobles de los servicios de Google: navegación, carga, éxito, error, vacío y doble envío.
+- [x] Comprobar los flujos alternativos y la conservación del ciclo seleccionado.
+- [ ] Verificar llamadas reales y permisos en Apps Script. **Pospuesto por decisión del usuario.** Los servicios simulados locales no sustituyen esa prueba.
 
 ### 6. Entrega y explicación individual
 
-- [ ] Documentar el uso de `x-data`, `x-show`, `x-model`, `x-for` y eventos.
-- [ ] Preparar ejemplos del recorrido acción → carga → servidor → respuesta → vista para cada CU.
-- [ ] Subir la rama y abrir un pull request con alcance, verificaciones y pendientes.
+- [x] Documentar el uso de `x-data`, `x-show`, `x-model`, `x-for` y eventos.
+- [x] Preparar ejemplos del recorrido acción → carga → servidor → respuesta → vista para cada CU.
+- [x] Subir la rama y abrir un pull request con alcance, verificaciones y pendientes.
 
-## Decisiones de la primera entrega
+## Decisiones de arquitectura
 
 `Navegacion.html` registra el store `navegacion` durante `alpine:init`. `Index.html` carga Alpine **3.17.5** con `defer`; todas las vistas incluidas viven bajo el `x-data` del body. Las inclusiones de Apps Script mantienen el espacio de nombres plano.
 
@@ -65,9 +65,9 @@ La evaluación exige navegación con Alpine, estados reactivos durante llamadas 
 | `sesionIniciada` | Alternar el acceso de demostración y el espacio de trabajo. No representa autenticación real. |
 | `vistaActual` | Seleccionar Inicio, Ciclo, Clases, Plantillas, Tareas o Reportes. |
 | `reporteActual` | Elegir investigador o carrera y línea. |
-| `reportesVisibles` | Ocultar pestañas y paneles durante la carga o ante un error. No reemplaza aún el estado de carga del CU-005. |
+| `reportesVisibles` | Ocultar pestañas y paneles durante la carga o ante un error. Su valor se actualiza desde la carga reactiva del CU-005. |
 
-Los eventos de navegación usan `@click`. `switchTab()` y `cambiarSubmoduloReportes()` delegan al store para conservar los flujos existentes. Los callbacks de entrada se ejecutan con `Alpine.nextTick`, después de que `x-show` haya mostrado la vista, para que los gráficos puedan medir su contenedor. El selector del ciclo, los formularios, las llamadas al servidor y el renderizado de datos conservan su implementación actual hasta las siguientes etapas.
+Los eventos de navegación usan `@click`. `switchTab()` y `cambiarSubmoduloReportes()` delegan al store para conservar los flujos existentes. Los callbacks de entrada se ejecutan con `Alpine.nextTick`, después de que `x-show` haya mostrado la vista, para que los gráficos puedan medir su contenedor. Los stores `tareas` y `reportes` de `Reactivos.html` controlan carga, respuestas, formularios y filtros. `TablaPublicaciones.html` comparte el renderizado reactivo entre ambas modalidades.
 
 La navegación usa `x-show`, en lugar de destruir las vistas, para conservar filtros y formularios. `x-cloak` evita mostrar los módulos antes de inicializar Alpine. Los selectores de anchura de reportes leen atributos reactivos, porque Alpine oculta con `display` y ya no con la clase `hidden`.
 
@@ -78,7 +78,11 @@ La navegación usa `x-show`, en lugar de destruir las vistas, para conservar fil
 - `src/vistas/Inicio.html`: accesos directos reactivos.
 - Vistas de los seis módulos: visibilidad con `x-show`.
 - `src/vistas/Reportes.html`, `ReporteInvestigador.html`, `ReporteCarrera.html`: pestañas, accesibilidad y paneles.
-- `src/scripts/Scripts.html`: puentes de compatibilidad y visibilidad de paneles.
+- `src/scripts/Scripts.html`: puentes de compatibilidad, cálculos y presentación existente.
+- `src/scripts/Reactivos.html`: promesas de Apps Script, estado de Tareas y Reportes.
+- `src/vistas/TablaPublicaciones.html`: columnas, filas y vacío de ambas tablas de publicaciones.
+- `src/servidor/Código.gs`: catálogo de plantillas, publicación y cancelación simuladas.
+- `tests/` y `.github/workflows/verificaciones.yml`: comprobaciones locales y en GitHub.
 - `src/estilos/Estilos.html`: `x-cloak` y anchura según vista activa.
 
 Para desplegar esta entrega hay que crear también el archivo HTML **Navegacion** en el editor de Apps Script. Abrir `Index.html` directamente no resuelve sus inclusiones.
@@ -105,4 +109,12 @@ Comprobaciones locales realizadas sobre una composición de las inclusiones de A
 
 Para repetir manualmente en Apps Script: copiar los archivos modificados y crear `Navegacion`; acceder a la aplicación, recorrer los módulos, rellenar Tareas y cambiar de vista, consultar Reportes, alternar sus pestañas con ratón y teclado, cambiar a un ciclo cerrado y comprobar el botón de asignación. Activar el error de repositorio en Condiciones de prueba, verificar la ocultación de paneles y recuperar la consulta al restablecer la condición.
 
-No se ha probado un despliegue real de Google ni migrado el contrato del servidor. El siguiente trabajo es la etapa 3, CU-002.
+Esta sección documenta el primer avance. Las etapas restantes se completaron después; véase el cierre siguiente.
+
+## Cierre de las etapas 3 a 6 — 2026-11-05
+
+Implementados carga y poblamiento reactivos en ambos CUs. Tareas consulta plantillas y publica una simulación mediante endpoints de Apps Script, con validación del servidor, reintentos idempotentes y cancelación compensada. Reportes carga sus datos, mantiene selectores con `x-model`/`x-for` y representa publicaciones filtradas y paginadas con `x-for` en las dos modalidades. Se mantiene la generación de gráficos y exportaciones existente.
+
+Se añadieron pruebas de servidor y navegador, flujo de comprobaciones en GitHub y [guía de explicación individual](GUIA_ALPINE.md). Las pruebas de navegador ejecutan Alpine real y el código de endpoints en un VM con dobles de CacheService y LockService. No equivalen a una validación con cuentas de Google.
+
+Por instrucción del usuario, el despliegue y su validación se posponen. No se subió código a Apps Script ni se modificaron archivos en Google. Los problemas previos del consolidado (actualización, duplicados y permisos) se mantienen como trabajo separado.
