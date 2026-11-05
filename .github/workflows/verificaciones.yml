@@ -2,8 +2,12 @@ name: Verificaciones
 
 on:
   push:
-    branches: [main, feat/alpine-casos-uso]
+    branches: [main]
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
