@@ -1,0 +1,243 @@
+
+<!-- INICIO: reporte-carrera -->
+<section aria-labelledby="tab-reporte-carrera" class="hidden space-y-6" id="reporte-carrera" role="tabpanel">
+<!-- INICIO: carrera-dialogo-generales -->
+<dialog aria-labelledby="carrera-titulo-filtros" class="inv-dialogo-filtros" id="carrera-dialogo-generales"><div class="reporte-seccion"><h3 id="carrera-titulo-filtros">Filtros generales</h3><button class="inv-cerrar-filtros" onclick="document.getElementById('carrera-dialogo-generales').close()" type="button">Cerrar</button></div>
+<div class="reporte-filtros carrera-filtros-generales">
+<label class="reporte-campo" for="carrera-select"><span>Carrera profesional</span><select id="carrera-select" onchange="cambiarCarreraReporte()"></select></label>
+<label class="reporte-campo" for="carrera-linea"><span>Línea de investigación</span><select id="carrera-linea" onchange="cambiarLineaReporte()"></select></label>
+<label class="reporte-campo" for="carrera-investigador"><span>Investigador</span><select id="carrera-investigador" onchange="actualizarReporteCarrera()"></select></label>
+<label class="reporte-campo" for="carrera-periodo"><span>Ciclo / Periodos</span><select id="carrera-periodo" onchange="actualizarReporteCarrera()"><option value="actual">Ciclo seleccionado en la cabecera</option><option value="todos">Todos los ciclos registrados</option></select></label>
+</div>
+<div class="inv-acciones-descarga"><button class="boton-primario" onclick="document.getElementById('carrera-dialogo-generales').close()" type="button">Listo</button></div></dialog>
+<!-- FIN: carrera-dialogo-generales -->
+<!-- INICIO: carrera-seccion-estadisticas -->
+<section aria-labelledby="carrera-titulo-estadisticas" class="glass-card inv-panel" id="carrera-seccion-estadisticas"><div class="carrera-selector-cabecera"><h3 id="carrera-titulo-estadisticas">Estadísticas</h3><label class="reporte-campo carrera-selector-grupo" for="carrera-grupo-estadisticas"><span class="sr-only">Grupo seleccionado</span><select id="carrera-grupo-estadisticas" onchange="mostrarGrupoEstadisticasCarrera()"><option value="principales">Indicadores principales (KPI)</option><option value="produccion">Producción científica</option><option value="investigadores">Investigadores</option><option value="proyectos">Proyectos</option><option value="eventos">Eventos académicos</option></select></label></div><div aria-live="polite" id="carrera-resumen"></div><div aria-live="polite" class="carrera-estadisticas-detalle" id="carrera-estadisticas-detalle"></div></section>
+<!-- FIN: carrera-seccion-estadisticas -->
+<!-- INICIO: carrera-seccion-comparativas -->
+<section aria-labelledby="carrera-titulo-comparativas" class="glass-card inv-panel" id="carrera-seccion-comparativas"><div class="carrera-selector-cabecera"><h3 id="carrera-titulo-comparativas">Comparativas y Rankings</h3><label class="reporte-campo carrera-selector-grupo" for="carrera-grupo-comparativas"><span class="sr-only">Grupo seleccionado</span><select id="carrera-grupo-comparativas" onchange="mostrarComparativaCarrera()"><option value="publicaciones">Carreras por publicaciones</option><option value="q12">Líneas por publicaciones Q1–Q2</option><option value="finalizados">Carreras por proyectos finalizados</option><option value="financiamiento">Líneas por financiamiento</option><option value="productividad">Productividad por carrera</option><option value="evolucion">Producción comparativa entre ciclos</option><option value="renacyt">Investigadores RENACYT por carrera</option></select></label></div><div aria-live="polite" class="carrera-comparativa-fila" id="carrera-comparativas-contenido"></div></section>
+<!-- FIN: carrera-seccion-comparativas -->
+<div class="carrera-analisis-grid">
+<!-- INICIO: Gráficos de producción científica -->
+<section aria-label="Gráficos de producción científica" class="glass-card inv-panel" id="carrera-seccion-graficos">
+
+
+<div class="carrera-graficos-desplazamiento"><div class="carrera-graficos-grid">
+<!-- INICIO: carrera-titulo-series -->
+<section aria-labelledby="carrera-titulo-series" class="carrera-grafico-bloque"><h4 id="carrera-titulo-series">Series temporales</h4><button aria-controls="carrera-dialogo-grafico" aria-haspopup="dialog" aria-label="Filtrar gráfico de series temporales" class="inv-boton-filtros inv-filtro-compacto carrera-filtro-grafico" onclick="abrirFiltroGraficoCarrera('series')" title="Filtrar gráfico de series temporales" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i></button><div id="carrera-series"></div></section>
+<!-- FIN: carrera-titulo-series -->
+<!-- INICIO: carrera-titulo-barras -->
+<section aria-labelledby="carrera-titulo-barras" class="carrera-grafico-bloque"><h4 id="carrera-titulo-barras">Publicaciones</h4><button aria-controls="carrera-dialogo-grafico" aria-haspopup="dialog" aria-label="Filtrar gráfico de publicaciones por ranking" class="inv-boton-filtros inv-filtro-compacto carrera-filtro-grafico" onclick="abrirFiltroGraficoCarrera('histograma')" title="Filtrar gráfico de publicaciones por ranking" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i></button><div id="carrera-histograma"></div></section>
+<!-- FIN: carrera-titulo-barras -->
+<div class="carrera-pasteles-columna">
+<!-- INICIO: Gráfico de proyectos -->
+<section aria-label="Gráfico de proyectos" class="carrera-grafico-bloque"><button aria-controls="carrera-dialogo-grafico" aria-haspopup="dialog" aria-label="Filtrar gráfico de proyectos" class="inv-boton-filtros inv-filtro-compacto carrera-filtro-grafico" onclick="abrirFiltroGraficoCarrera('proyectos')" title="Filtrar gráfico de proyectos" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i></button><div id="carrera-grafico-proyectos"></div></section>
+<!-- FIN: Gráfico de proyectos -->
+<!-- INICIO: Gráfico de eventos -->
+<section aria-label="Gráfico de eventos" class="carrera-grafico-bloque"><button aria-controls="carrera-dialogo-grafico" aria-haspopup="dialog" aria-label="Filtrar gráfico de eventos" class="inv-boton-filtros inv-filtro-compacto carrera-filtro-grafico" onclick="abrirFiltroGraficoCarrera('eventos')" title="Filtrar gráfico de eventos" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i></button><div id="carrera-grafico-eventos"></div></section>
+<!-- FIN: Gráfico de eventos -->
+</div></div></div>
+</section>
+<!-- FIN: Gráficos de producción científica -->
+<!-- INICIO: carrera-seccion-investigadores -->
+<aside aria-labelledby="carrera-titulo-investigadores" class="glass-card inv-panel carrera-investigadores-panel" id="carrera-seccion-investigadores">
+<h3 id="carrera-titulo-investigadores">Investigadores</h3><p class="reporte-nota" id="carrera-contador-investigadores" role="status"></p><div aria-label="Investigadores de la carrera y línea seleccionadas" class="reporte-listado" id="carrera-lista-investigadores" role="region" tabindex="0"></div>
+</aside>
+<!-- FIN: carrera-seccion-investigadores -->
+</div>
+<div class="investigador-produccion-grid carrera-produccion-grid">
+<!-- INICIO: carrera-seccion-publicaciones -->
+<section aria-labelledby="carrera-titulo-publicaciones" class="glass-card investigador-publicaciones space-y-4" id="carrera-seccion-publicaciones">
+<div class="investigador-titulo-publicaciones inv-cabecera-seccion">
+<div>
+<h3 id="carrera-titulo-publicaciones">Publicaciones</h3>
+
+</div>
+<button aria-controls="carrera-dialogo-publicaciones" aria-haspopup="dialog" aria-label="Filtros de publicaciones" class="inv-boton-filtros inv-filtro-compacto" onclick="abrirFiltrosCarrera('publicaciones')" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i> Filtros</button>
+</div>
+<!-- INICIO: carrera-dialogo-publicaciones -->
+<dialog aria-labelledby="carrera-titulo-filtros-publicaciones" class="inv-dialogo-filtros" id="carrera-dialogo-publicaciones">
+<div class="reporte-seccion">
+<h3 id="carrera-titulo-filtros-publicaciones">Filtros de publicaciones</h3>
+<button aria-label="Cerrar filtros" class="inv-cerrar-filtros" onclick="document.getElementById('carrera-dialogo-publicaciones').close()" type="button">Cerrar</button>
+</div>
+
+<fieldset class="inv-grupo-filtros">
+<legend>Clasificación y publicación</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Tipo</span><select id="carrera-tipo-publicacion" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Estado de publicación</span><select id="carrera-pub-estado" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Indexación</span><select id="carrera-pub-indexacion" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Cuartil</span><select id="carrera-pub-cuartil" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Ranking de conferencia</span><select id="carrera-pub-ranking" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Impacto</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>H-index mínimo</span><input id="carrera-pub-min" min="0" oninput="actualizarReporteCarrera()" type="number"/></label>
+<label class="reporte-campo"><span>H-index máximo</span><input id="carrera-pub-max" min="0" oninput="actualizarReporteCarrera()" type="number"/></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Ubicación y evidencia</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>País o ciudad</span><select id="carrera-pub-lugar" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Evidencia</span><select id="carrera-pub-evidencia" onchange="actualizarReporteCarrera()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Ordenamiento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Ordenamiento</span><select id="carrera-orden" onchange="actualizarReporteCarrera()"><option value="fecha">Fecha</option><option value="impacto">Impacto</option><option value="cuartil">Cuartil</option></select></label>
+</div>
+</fieldset>
+<div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('carrera-publicaciones')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('carrera-dialogo-publicaciones').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: carrera-dialogo-publicaciones -->
+<div class="inv-herramientas">
+<label class="inv-buscador" for="carrera-buscar-publicaciones"><span class="sr-only">Buscar publicaciones por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="carrera-buscar-publicaciones" oninput="buscarColeccionInv('carrera-publicaciones', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
+<label class="inv-tamano" for="carrera-tamano-publicaciones">Mostrar<select id="carrera-tamano-publicaciones" onchange="tamanoColeccionInv('carrera-publicaciones', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<button aria-label="Exportar publicaciones filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('carrera-publicaciones')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
+</div>
+<p aria-live="polite" class="reporte-nota inv-contador-coleccion" id="carrera-contador-publicaciones" role="status"></p>
+<div aria-label="Publicaciones de la carrera y línea, tabla con desplazamiento horizontal" class="reporte-tabla" id="carrera-publicaciones" role="region" tabindex="0"><table><tbody id="carrera-publicaciones-body"></tbody></table></div>
+<div class="inv-pie-coleccion" id="carrera-pie-publicaciones"></div>
+</section>
+<!-- FIN: carrera-seccion-publicaciones -->
+<!-- INICIO: carrera-seccion-proyectos -->
+<section aria-labelledby="carrera-titulo-proyectos" class="glass-card investigador-proyectos space-y-4" id="carrera-seccion-proyectos">
+<div class="inv-cabecera-seccion">
+<h3 id="carrera-titulo-proyectos">Proyectos</h3>
+<button aria-controls="carrera-dialogo-proyectos" aria-haspopup="dialog" aria-label="Filtros de proyectos" class="inv-boton-filtros inv-filtro-compacto" onclick="abrirFiltrosCarrera('proyectos')" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i> Filtros</button>
+</div>
+<!-- INICIO: carrera-dialogo-proyectos -->
+<dialog aria-labelledby="carrera-titulo-filtros-proyectos" class="inv-dialogo-filtros" id="carrera-dialogo-proyectos">
+<div class="reporte-seccion">
+<h3 id="carrera-titulo-filtros-proyectos">Filtros de proyectos</h3>
+<button aria-label="Cerrar filtros" class="inv-cerrar-filtros" onclick="document.getElementById('carrera-dialogo-proyectos').close()" type="button">Cerrar</button>
+</div>
+
+<fieldset class="inv-grupo-filtros">
+<legend>Características del proyecto</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Financiamiento</span><select id="carrera-tipo-proyecto" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Estado</span><select id="carrera-pro-estado" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Tipo de proyecto</span><select id="carrera-pro-tipoProyecto" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Área temática</span><select id="carrera-pro-area" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Participación y financiamiento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Rol del investigador</span><select id="carrera-pro-rol" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Entidad financiadora</span><select id="carrera-pro-financiador" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Presupuesto mínimo</span><input id="carrera-pro-min" min="0" oninput="actualizarReporteCarrera()" type="number"/></label>
+<label class="reporte-campo"><span>Presupuesto máximo</span><input id="carrera-pro-max" min="0" oninput="actualizarReporteCarrera()" type="number"/></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Evidencia y ordenamiento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Evidencia</span><select id="carrera-pro-evidencia" onchange="actualizarReporteCarrera()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
+<label class="reporte-campo"><span>Ordenamiento</span><select id="carrera-pro-orden" onchange="actualizarReporteCarrera()"><option value="fecha">Fecha</option><option value="presupuesto">Presupuesto</option><option value="avance">Avance</option></select></label>
+</div>
+</fieldset>
+<div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('carrera-proyectos')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('carrera-dialogo-proyectos').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: carrera-dialogo-proyectos -->
+<div class="inv-herramientas">
+<label class="inv-buscador" for="carrera-buscar-proyectos"><span class="sr-only">Buscar proyectos por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="carrera-buscar-proyectos" oninput="buscarColeccionInv('carrera-proyectos', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
+<label class="inv-tamano" for="carrera-tamano-proyectos"><span class="sr-only">Registros por página</span><select id="carrera-tamano-proyectos" onchange="tamanoColeccionInv('carrera-proyectos', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<button aria-label="Exportar proyectos filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('carrera-proyectos')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
+<button onclick="abrirColeccionInv('carrera-proyectos')" type="button">Ver tabla</button>
+</div>
+<p aria-live="polite" class="reporte-nota inv-contador-coleccion" id="carrera-contador-proyectos" role="status"></p>
+<div class="reporte-listado" id="carrera-proyectos"></div>
+<div class="inv-pie-coleccion" id="carrera-pie-proyectos"></div>
+</section>
+<!-- FIN: carrera-seccion-proyectos -->
+<!-- INICIO: carrera-seccion-eventos -->
+<section aria-labelledby="carrera-titulo-eventos" class="glass-card investigador-eventos space-y-4" id="carrera-seccion-eventos">
+<div class="inv-cabecera-seccion">
+<h3 id="carrera-titulo-eventos">Eventos</h3>
+<button aria-controls="carrera-dialogo-eventos" aria-haspopup="dialog" aria-label="Filtros de eventos" class="inv-boton-filtros inv-filtro-compacto" onclick="abrirFiltrosCarrera('eventos')" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i> Filtros</button>
+</div>
+<!-- INICIO: carrera-dialogo-eventos -->
+<dialog aria-labelledby="carrera-titulo-filtros-eventos" class="inv-dialogo-filtros" id="carrera-dialogo-eventos">
+<div class="reporte-seccion">
+<h3 id="carrera-titulo-filtros-eventos">Filtros de eventos</h3>
+<button aria-label="Cerrar filtros" class="inv-cerrar-filtros" onclick="document.getElementById('carrera-dialogo-eventos').close()" type="button">Cerrar</button>
+</div>
+
+<fieldset class="inv-grupo-filtros">
+<legend>Características del evento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Estado</span><select id="carrera-estado-evento" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Tipo de evento</span><select id="carrera-eve-tipo" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Modalidad</span><select id="carrera-eve-modalidad" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Participación y ubicación</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Rol</span><select id="carrera-eve-rol" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>País o ciudad</span><select id="carrera-eve-lugar" onchange="actualizarReporteCarrera()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Evidencia y ordenamiento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Evidencia</span><select id="carrera-eve-evidencia" onchange="actualizarReporteCarrera()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
+<label class="reporte-campo"><span>Ordenamiento</span><select id="carrera-eve-orden" onchange="actualizarReporteCarrera()"><option value="fecha">Fecha</option></select></label>
+</div>
+</fieldset>
+<div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('carrera-eventos')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('carrera-dialogo-eventos').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: carrera-dialogo-eventos -->
+<div class="inv-herramientas">
+<label class="inv-buscador" for="carrera-buscar-eventos"><span class="sr-only">Buscar eventos por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="carrera-buscar-eventos" oninput="buscarColeccionInv('carrera-eventos', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
+<label class="inv-tamano" for="carrera-tamano-eventos"><span class="sr-only">Registros por página</span><select id="carrera-tamano-eventos" onchange="tamanoColeccionInv('carrera-eventos', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<button aria-label="Exportar eventos filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('carrera-eventos')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
+<button onclick="abrirColeccionInv('carrera-eventos')" type="button">Ver tabla</button>
+</div>
+<p aria-live="polite" class="reporte-nota inv-contador-coleccion" id="carrera-contador-eventos" role="status"></p>
+<div class="reporte-listado" id="carrera-eventos"></div>
+<div class="inv-pie-coleccion" id="carrera-pie-eventos"></div>
+</section>
+<!-- FIN: carrera-seccion-eventos -->
+</div>
+</section>
+<!-- FIN: reporte-carrera -->
+<!-- INICIO: carrera-dialogo-descarga -->
+<dialog aria-labelledby="carrera-descarga-titulo" id="carrera-dialogo-descarga">
+<!-- INICIO: Formulario -->
+<form onsubmit="descargarReporteInvestigador(event, 'carrera')">
+<h3 id="carrera-descarga-titulo">Descargar reporte por carrera y línea</h3>
+
+<fieldset class="inv-opciones-descarga"><legend>Secciones a incluir</legend><label><input checked="" name="seccion-reporte" type="checkbox" value="estadisticas"/> Estadísticas</label><label><input checked="" name="seccion-reporte" type="checkbox" value="graficos"/> Gráficos</label><label><input checked="" name="seccion-reporte" type="checkbox" value="investigadores"/> Investigadores</label><label><input checked="" name="seccion-reporte" type="checkbox" value="publicaciones"/> Publicaciones</label><label><input checked="" name="seccion-reporte" type="checkbox" value="proyectos"/> Proyectos</label><label><input checked="" name="seccion-reporte" type="checkbox" value="eventos"/> Eventos</label><label><input checked="" name="seccion-reporte" type="checkbox" value="comparativas"/> Comparativas y Rankings</label></fieldset>
+<label class="reporte-campo" for="carrera-formato-descarga"><span>Formato</span>
+<select id="carrera-formato-descarga">
+<option value="html">HTML (reporte visual)</option>
+<option value="csv">CSV (datos y métricas)</option>
+<option value="json">JSON (datos estructurados)</option>
+<option value="pdf">PDF (imprimir / guardar como PDF)</option>
+</select>
+</label>
+<p aria-live="polite" class="reporte-nota" id="carrera-descarga-estado" role="status"></p>
+<div class="inv-acciones-descarga">
+<button class="filtro-pill" onclick="document.getElementById('carrera-dialogo-descarga').close()" type="button">Cancelar</button>
+<button class="boton-primario" type="submit">Generar reporte</button>
+</div>
+</form>
+<!-- FIN: Formulario -->
+</dialog>
+<!-- FIN: carrera-dialogo-descarga -->
+<!-- INICIO: carrera-dialogo-grafico -->
+<dialog aria-labelledby="carrera-filtro-grafico-titulo" class="inv-dialogo-filtros" id="carrera-dialogo-grafico">
+<div class="reporte-seccion"><h3 id="carrera-filtro-grafico-titulo">Filtros del gráfico</h3><button class="inv-cerrar-filtros" onclick="document.getElementById('carrera-dialogo-grafico').close()" type="button">Cerrar</button></div>
+<div class="inv-filtros" id="carrera-filtro-grafico-campos"></div>
+<div class="inv-acciones-descarga"><button class="boton-primario" onclick="document.getElementById('carrera-dialogo-grafico').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: carrera-dialogo-grafico -->
+

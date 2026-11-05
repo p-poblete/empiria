@@ -1,0 +1,2355 @@
+<script>
+  
+  // INICIO: 1. CONTROL DE SESIÓN SIMULADO
+  function iniciarSesion(destino) {
+    // FA-001 y FA-002: la sesión invalidada y la base de datos no disponible se
+    // comprueban antes de continuar (bloquean el acceso y se reintentan).
+    if (typeof probarInicioSesion === 'function' && !probarInicioSesion()) return;
+    var viewLogin = document.getElementById('view-login');
+    var dashboard = document.getElementById('app-dashboard');
+
+    if (viewLogin && dashboard) {
+      viewLogin.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+      dashboard.classList.add('fade-in');
+
+      // FA-020: antes de continuar, las transacciones colgadas por un cierre
+      // inesperado se marcan como Fallido y quedan registradas en auditoría.
+      rescatarTransaccionesColgadas();
+
+      renderizarPlantillas();
+      actualizarSelectPlantillas();
+
+      // FA-003 de CU-002 (paso 4): sin ciclo activo se informa y se redirige a Ciclos.
+      if (typeof estaConPrueba === 'function' && estaConPrueba('sinCicloActivo')) {
+        switchTab('ciclo');
+        avisoSistema('No existe un ciclo académico activo. Active un ciclo antes de continuar.', 'Aceptar');
+        return;
+      }
+      // Paso 6: panel principal con el ciclo activo; FA-019 regresa directamente a Tareas.
+      switchTab(destino === 'tareas' ? 'tareas' : 'inicio');
+    }
+  }
+
+  function cerrarSesion() {
+    cerrarModalExito();
+    cerrarModalCrearPlantilla();
+    cancelarFormulario();
+    document.getElementById('app-dashboard').classList.add('hidden');
+    document.getElementById('view-login').classList.remove('hidden');
+    cicloEstadoActual = 'ACTIVO';
+    selectCiclo('Ciclo 2026-II', 'ACTIVO');
+    switchTab('inicio');
+  }
+
+  // FIN: 1. CONTROL DE SESIÓN SIMULADO
+
+  // INICIO: 2. ESTADO GLOBAL
+  var MAPEO_CLASES = {
+    'Ciclo 2026-II': 'Investigadores 2026-II',
+    'Ciclo 2026-I': 'Investigadores 2026-I',
+    'Ciclo 2025-II': 'Investigadores 2025-II'
+  };
+
+  var cicloEstadoActual = 'ACTIVO';
+  var filtroPlantillasActual = 'todas';
+  // Espera simulada de la publicación en curso (pasos 35 a 38 y reintentos de FA-016).
+  var temporizadorTarea = null;
+
+  var plantillas = [
+    {
+      id: 'P1',
+      nombre: 'Plantilla_Base_Proyectos_v1',
+      extension: '.gsheet',
+      fechaSubida: '15/03/2026',
+      numHojas: 5,
+      hojas: ['Hoja1', 'Hoja2', 'Hoja3', 'Hoja4', 'Hoja5'],
+      estado: 'disponible',
+      cicloAsociado: null,
+      urlSheets: 'https://docs.google.com/spreadsheets/d/1abcDEMO123/edit'
+    },
+    {
+      id: 'P2',
+      nombre: 'Plantilla_Informe_Financiero_v2',
+      extension: '.gsheet',
+      fechaSubida: '10/03/2026',
+      numHojas: 3,
+      hojas: ['Hoja1', 'Hoja2', 'Hoja3'],
+      estado: 'en_uso',
+      cicloAsociado: 'Ciclo 2026-I',
+      urlSheets: 'https://docs.google.com/spreadsheets/d/2defDEMO456/edit'
+    }
+  ];
+
+  // FIN: 2. ESTADO GLOBAL
+
+  // INICIO: 3. CONTROL FORMULARIO TAREA
+  function toggleFormTarea(show) {
+    if (show && cicloEstadoActual === 'CERRADO') {
+      alert('No se puede asignar tareas en un ciclo cerrado. Seleccione el ciclo activo.');
+      return;
+    }
+    // FA-003 y FA-005 a FA-009: condiciones de prueba y precondiciones de clase,
+    // plantilla, Drive y estudiantes (pasos 10 a 16).
+    if (show && typeof validarCondicionesTarea === 'function' && !validarCondicionesTarea()) return;
+
+    var form = document.getElementById('form-asignar-tarea');
+    var placeholder = document.getElementById('placeholder-tareas');
+    
+    if (show) {
+      actualizarSelectPlantillas();
+      form.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+    } else {
+      form.classList.add('hidden');
+      placeholder.classList.remove('hidden');
+    }
+  }
+
+  function cancelarFormulario() {
+    clearTimeout(temporizadorTarea);
+    // FA-013/RN-002-08: si había una publicación en proceso, su transacción queda Cancelada.
+    if (typeof marcarCancelacionFormulario === 'function') marcarCancelacionFormulario();
+    document.getElementById('form-tarea-element').reset();
+    limpiarErrores();
+    resetearBotonCrear();
+    toggleFormTarea(false);
+  }
+
+  function setBotonCreando(creando) {
+    var btn = document.getElementById('btn-crear-tarea');
+    var icon = document.getElementById('icon-crear-tarea');
+    var texto = document.getElementById('texto-crear-tarea');
+
+    if (creando) {
+      btn.disabled = true;
+      btn.classList.add('opacity-70', 'cursor-not-allowed');
+      icon.className = 'fa-solid fa-spinner spinner';
+      texto.innerText = 'Creando…';
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('opacity-70', 'cursor-not-allowed');
+      icon.className = 'fa-solid fa-paper-plane';
+      texto.innerText = 'Crear tarea';
+    }
+    // FA-013 aplica antes del envío (pasos 18 a 24): Cancelar y X se bloquean durante la
+    // publicación, cuando solo procede FA-014 con «Cancelar publicación».
+    ['btn-cancelar-formulario', 'btn-cerrar-formulario'].forEach(function(id) { document.getElementById(id).disabled = creando; });
+    // FA-014: el botón Cancelar publicación solo existe mientras hay una publicación en curso.
+    if (typeof actualizarControlCancelarPublicacion === 'function') actualizarControlCancelarPublicacion(creando);
+  }
+
+  function resetearBotonCrear() { setBotonCreando(false); }
+
+  function limpiarErrores() {
+    document.querySelectorAll('.input-error').forEach(function(el) { el.classList.remove('input-error'); });
+  }
+
+  function marcarError(elementId) {
+    var el = document.getElementById(elementId);
+    if (el) {
+      el.classList.add('input-error');
+      el.focus();
+    }
+  }
+
+  function esFechaFutura(fechaStr, horaStr) {
+    if (!fechaStr) return false;
+    var ahora = new Date();
+    var fechaHora = new Date(fechaStr + 'T' + (horaStr || '00:00'));
+    return fechaHora > ahora;
+  }
+
+  function actualizarAyudaRangoHojas() {
+    var plantillaId = document.getElementById('input-plantilla').value;
+    var plantilla = plantillas.find(function(p) { return p.id === plantillaId; });
+    document.getElementById('ayuda-rango-hojas').textContent = plantilla && plantilla.hojas
+      ? 'Hojas disponibles, en orden: ' + plantilla.hojas.join(' → ') + '. Puede seleccionar una sola hoja usando el mismo nombre en ambos extremos.'
+      : 'Seleccione una plantilla para consultar sus hojas disponibles.';
+  }
+
+  function validarRangoHojas(plantillaId) {
+    var plantilla = plantillas.find(function(p) { return p.id === plantillaId; });
+    var hojas = plantilla && Array.isArray(plantilla.hojas) ? plantilla.hojas : [];
+    var inicio = document.getElementById('input-hoja-inicial').value.trim();
+    var fin = document.getElementById('input-hoja-final').value.trim();
+    var indiceInicio = hojas.indexOf(inicio);
+    var indiceFin = hojas.indexOf(fin);
+    if (indiceInicio === -1 || indiceFin === -1 || indiceInicio > indiceFin) {
+      marcarError(indiceInicio === -1 || indiceInicio > indiceFin ? 'input-hoja-inicial' : 'input-hoja-final');
+      alert('El rango de hojas no es válido para la plantilla seleccionada.');
+      return false;
+    }
+    return true;
+  }
+
+  function crearTarea(e) {
+    e.preventDefault();
+    limpiarErrores();
+
+    var titulo = document.getElementById('input-titulo').value.trim();
+    var descripcion = document.getElementById('input-descripcion').value.trim();
+    var fecha = document.getElementById('input-fecha').value;
+    var hora = document.getElementById('input-hora').value;
+    var plantillaId = document.getElementById('input-plantilla').value;
+
+    if (!titulo) { marcarError('input-titulo'); alert('El título de la actividad es obligatorio.'); return; }
+    if (!descripcion) { marcarError('input-descripcion'); alert('La descripción de la actividad es obligatoria.'); return; }
+    if (!esFechaFutura(fecha, hora)) { marcarError('input-fecha'); alert('La fecha y hora de entrega deben ser posteriores a la fecha y hora actuales.'); return; }
+    // FA-010, paso 28: la entrega no puede exceder la fecha de fin del ciclo seleccionado.
+    if (excedeFinCicloEntrega(fecha, hora)) { marcarError('input-fecha'); alert('La fecha y hora de entrega no pueden exceder la fecha de fin del ciclo seleccionado.'); return; }
+    if (!plantillaId) { marcarError('input-plantilla'); alert('Debe seleccionar una plantilla base.'); return; }
+    if (!validarRangoHojas(plantillaId)) return;
+
+    var ciclo = document.getElementById('input-ciclo-context').value;
+
+    // FA-011 (paso 31): control de título duplicado en la clase del ciclo seleccionado.
+    if (existeTareaMismoNombre(ciclo, titulo)) {
+      marcarError('input-titulo');
+      alert('Ya existe una tarea con el mismo nombre en esta clase. Modifique el título de la actividad antes de continuar.');
+      return;
+    }
+
+    iniciarPublicacion({ titulo: titulo, descripcion: descripcion, fecha: fecha, hora: hora, plantillaId: plantillaId, ciclo: ciclo });
+  }
+
+  // Pasos 32 a 34; FA-018 («Reintentar») regresa a este punto.
+  function iniciarPublicacion(datos) {
+    // FA-012 (paso 32): no puede existir otra publicación en curso para el mismo ciclo.
+    if (hayPublicacionEnCurso(datos.ciclo)) {
+      alert('Ya existe una publicación en curso. Espere a que finalice antes de iniciar una nueva.');
+      return;
+    }
+    setBotonCreando(true); // paso 33
+    var transaccion = iniciarTransaccion(datos.ciclo, datos.titulo, datos.plantillaId); // paso 34
+    // Pasos 35 a 42, con FA-014 a FA-019 ante cancelación o fallo.
+    temporizadorTarea = setTimeout(function() { procesarPublicacion(transaccion, datos); }, 1200);
+  }
+
+  function cerrarModalExito() { document.getElementById('modal-exito').classList.add('hidden'); }
+
+  // Pasos 44 y 45: «Aceptar» cierra el modal, limpia y oculta el formulario.
+  function aceptarModalExito() {
+    cerrarModalExito();
+    cancelarFormulario();
+  }
+
+  // FIN: 3. CONTROL FORMULARIO TAREA
+
+  // INICIO: 4. NAVEGACIÓN POR PESTAÑAS
+  function toggleSidebar() {
+    var sidebar = document.getElementById('sidebar-trabajo');
+    var reducido = sidebar.classList.toggle('sidebar-reducido');
+    var boton = document.getElementById('btn-toggle-sidebar');
+    var etiqueta = (reducido ? 'Expandir' : 'Contraer') + ' Espacio de Trabajo';
+    boton.setAttribute('aria-expanded', String(!reducido));
+    boton.setAttribute('aria-label', etiqueta);
+    boton.setAttribute('title', etiqueta);
+    document.getElementById('icono-toggle-sidebar').className = 'fa-solid ' + (reducido ? 'fa-angles-right' : 'fa-angles-left');
+  }
+
+  var MODULOS = {
+    inicio: { subtitulo: 'Vista general y accesos a tu espacio de trabajo.', titulo: 'Panel Principal' },
+    ciclo: { subtitulo: 'Organización de los periodos de investigación.', titulo: 'Módulo de Ciclos' },
+    clases: { subtitulo: 'Clases de investigación y vinculación con Google Classroom.', titulo: 'Módulo de Clases' },
+    plantillas: { subtitulo: 'Documentos base para tus actividades de seguimiento.', titulo: 'Módulo de Plantillas Base', alEntrar: renderizarPlantillas },
+    tareas: { subtitulo: 'Gestión e integración con Google Classroom.', titulo: 'Módulo de Tareas', alEntrar: actualizarUICiclo },
+    reportes: { subtitulo: 'Indicadores y producción científica de los investigadores.', titulo: 'Módulo de Reportes de Investigación', alEntrar: inicializarModuloReportes }
+  };
+
+  function switchTab(tabId) {
+    if (!Object.prototype.hasOwnProperty.call(MODULOS, tabId)) return;
+    var modulo = MODULOS[tabId];
+    var selectedView = document.getElementById('view-' + tabId);
+    var selectedBtn = document.getElementById('btn-' + tabId);
+    if (!selectedView || !selectedBtn) return;
+
+    document.querySelectorAll('.view-panel').forEach(function(panel) { panel.classList.add('hidden'); });
+    document.querySelectorAll('.nav-btn').forEach(function(btn) {
+      btn.removeAttribute('aria-current');
+      btn.className = "nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all";
+    });
+
+    var title = document.getElementById('view-title');
+
+    if (selectedView) selectedView.classList.remove('hidden');
+    if (selectedBtn) {
+      selectedBtn.setAttribute('aria-current', 'page');
+      selectedBtn.className = "nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl nav-activo font-semibold transition-all";
+    }
+
+    if (title) title.innerText = modulo.titulo;
+    var subtitulo = document.getElementById('view-subtitle');
+    if (subtitulo) subtitulo.innerText = modulo.subtitulo;
+    document.getElementById('ciclo-dropdown').classList.add('hidden');
+    if (modulo.alEntrar) modulo.alEntrar();
+  }
+
+  // FIN: 4. NAVEGACIÓN POR PESTAÑAS
+
+  // INICIO: 5. GESTIÓN DEL CICLO ACTIVO / CERRADO
+  function toggleCicloDropdown() {
+    document.getElementById('ciclo-dropdown').classList.toggle('hidden');
+  }
+
+  function selectCiclo(nombreCiclo, estado) {
+    document.getElementById('selected-ciclo-label').innerText = nombreCiclo;
+    document.querySelectorAll('#ciclo-dropdown [data-ciclo]').forEach(function(boton) {
+      boton.setAttribute('aria-pressed', String(boton.dataset.ciclo === nombreCiclo));
+    });
+    document.getElementById('input-ciclo-context').value = nombreCiclo;
+    document.getElementById('input-clase-context').value = MAPEO_CLASES[nombreCiclo] || 'Sin clase asignada';
+
+    cicloEstadoActual = estado;
+
+    document.getElementById('ciclo-dropdown').classList.add('hidden');
+    actualizarUICiclo();
+
+    if (estado === 'CERRADO' && !document.getElementById('form-asignar-tarea').classList.contains('hidden')) {
+      cancelarFormulario();
+    }
+    actualizarReportesPorCiclo();
+  }
+
+  function actualizarUICiclo() {
+    var btnAsignar = document.getElementById('btn-asignar-tarea');
+    var aviso = document.getElementById('aviso-ciclo-cerrado');
+
+    if (cicloEstadoActual === 'CERRADO') {
+      btnAsignar.classList.add('btn-disabled');
+      btnAsignar.setAttribute('disabled', 'disabled');
+      aviso.classList.remove('hidden');
+    } else {
+      btnAsignar.classList.remove('btn-disabled');
+      btnAsignar.removeAttribute('disabled');
+      aviso.classList.add('hidden');
+    }
+  }
+
+  // FIN: 5. GESTIÓN DEL CICLO ACTIVO / CERRADO
+
+  // INICIO: 6. MÓDULO DE PLANTILLAS
+  function renderizarPlantillas() {
+    var contenedor = document.getElementById('lista-plantillas');
+    var vacio = document.getElementById('plantillas-vacio');
+    if (!contenedor) return;
+
+    var filtradas = plantillas;
+    if (filtroPlantillasActual === 'disponible') {
+      filtradas = plantillas.filter(function(p) { return p.estado === 'disponible'; });
+    } else if (filtroPlantillasActual === 'en_uso') {
+      filtradas = plantillas.filter(function(p) { return p.estado === 'en_uso'; });
+    }
+
+    if (filtradas.length === 0) {
+      contenedor.innerHTML = '';
+      vacio.classList.remove('hidden');
+      return;
+    }
+
+    vacio.classList.add('hidden');
+    contenedor.innerHTML = filtradas.map(function(p) {
+      var badgeEstado = p.estado === 'disponible'
+        ? '<span class="bg-emerald-500/20 border border-emerald-400/40 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">DISPONIBLE</span>'
+        : '<span class="bg-sky-500/20 border border-sky-400/40 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">EN USO</span>';
+
+      var cicloInfo = p.cicloAsociado
+        ? '<span class="text-xs text-slate-500">Usada en <span class="text-blue-700 font-semibold">' + p.cicloAsociado + '</span></span>'
+        : '<span class="text-xs text-slate-500">Aún no asignada</span>';
+
+      return '<div class="plantilla-card glass-card rounded-2xl p-5 border border-slate-200 fade-in">' +
+        '<div class="flex items-start justify-between mb-3">' +
+          '<div class="flex items-start space-x-3">' +
+            '<div class="w-11 h-11 bg-emerald-500/20 border border-emerald-400/40 text-emerald-700 rounded-xl flex items-center justify-center text-lg shrink-0">' +
+              '<i class="fa-solid fa-file-excel"></i>' +
+            '</div>' +
+            '<div class="min-w-0">' +
+              '<h3 class="text-sm font-bold text-slate-900 truncate">' + p.nombre + p.extension + '</h3>' +
+              '<p class="text-xs text-slate-500 mt-0.5">Subida: ' + p.fechaSubida + ' · ' + p.numHojas + ' hojas</p>' +
+            '</div>' +
+          '</div>' +
+          '<div class="shrink-0 ml-2">' + badgeEstado + '</div>' +
+        '</div>' +
+        '<div class="mb-3">' + cicloInfo + '</div>' +
+        '<div class="flex items-center gap-2 pt-2 border-t border-slate-200">' +
+          '<a href="' + p.urlSheets + '" target="_blank" rel="noopener noreferrer" class="flex-1 bg-slate-50 hover:bg-slate-200 text-slate-800 text-xs font-semibold py-2 rounded-lg border border-slate-200 transition-all flex items-center justify-center space-x-1.5">' +
+            '<i class="fa-solid fa-arrow-up-right-from-square"></i><span>Abrir en Sheets</span>' +
+          '</a>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function filtrarPlantillas(filtro) {
+    filtroPlantillasActual = filtro;
+    document.querySelectorAll('[data-filtro]').forEach(function(btn) { btn.classList.remove('active'); });
+    var activeBtn = document.querySelector('[data-filtro="' + filtro + '"]');
+    if (activeBtn) activeBtn.classList.add('active');
+    renderizarPlantillas();
+  }
+
+  function actualizarSelectPlantillas() {
+    var select = document.getElementById('input-plantilla');
+    if (!select) return;
+
+    var valorPrevio = select.value;
+    var disponibles = plantillas.filter(function(p) { return p.estado === 'disponible'; });
+
+    select.innerHTML = '<option value="">PLANTILLA: Seleccionar una disponible ↓</option>' +
+      disponibles.map(function(p) { return '<option value="' + p.id + '">' + p.nombre + p.extension + '</option>'; }).join('');
+
+    if (valorPrevio && disponibles.find(function(p) { return p.id === valorPrevio; })) {
+      select.value = valorPrevio;
+    }
+    actualizarAyudaRangoHojas();
+  }
+
+  function abrirModalCrearPlantilla() {
+    document.getElementById('modal-crear-plantilla').classList.remove('hidden');
+    document.getElementById('form-crear-plantilla').reset();
+    document.getElementById('input-nombre-plantilla').focus();
+  }
+
+  function cerrarModalCrearPlantilla() {
+    // El módulo Plantillas (CU-003) aún no tiene maquetado; cerrarSesion no debe fallar.
+    if (!document.getElementById('modal-crear-plantilla')) return;
+    document.getElementById('modal-crear-plantilla').classList.add('hidden');
+    document.getElementById('form-crear-plantilla').reset();
+    limpiarErrores();
+  }
+
+  function crearPlantilla(e) {
+    e.preventDefault();
+    limpiarErrores();
+
+    var nombre = document.getElementById('input-nombre-plantilla').value.trim();
+    var descripcion = document.getElementById('input-descripcion-plantilla').value.trim();
+
+    if (!nombre) { marcarError('input-nombre-plantilla'); alert('El nombre es obligatorio.'); return; }
+
+    var yaExiste = plantillas.some(function(p) { return p.nombre.toLowerCase() === nombre.toLowerCase(); });
+    if (yaExiste) { marcarError('input-nombre-plantilla'); alert('Ya existe una plantilla con ese nombre.'); return; }
+
+    window.open('https://sheets.new', '_blank');
+
+    plantillas.push({
+      id: 'P' + (plantillas.length + 1),
+      nombre: nombre,
+      extension: '.gsheet',
+      descripcion: descripcion,
+      fechaSubida: new Date().toLocaleDateString('es-PE'),
+      numHojas: 1,
+      hojas: ['Hoja1'],
+      estado: 'disponible',
+      cicloAsociado: null,
+      urlSheets: 'https://docs.google.com/spreadsheets/d/NUEVA' + Date.now() + '/edit'
+    });
+
+    cerrarModalCrearPlantilla();
+    renderizarPlantillas();
+    actualizarSelectPlantillas();
+  }
+
+  // FIN: 6. MÓDULO DE PLANTILLAS
+
+  // INICIO: 7. REPORTES POR INVESTIGADOR / CARRERA Y LÍNEA DE INVESTIGACIÓN
+  var datosReportesCache = null;
+  var reportesCargando = false;
+  var submoduloReporteActual = 'investigador';
+
+  function cambiarSubmoduloReportes(nombre) {
+    if (['investigador', 'carrera'].indexOf(nombre) === -1) return;
+    submoduloReporteActual = nombre;
+    ['btn-filtros-generales', 'btn-descargar-investigador'].forEach(function(id) {
+      document.getElementById(id).classList.toggle('hidden', nombre !== 'investigador');
+    });
+    ['btn-filtros-carrera', 'btn-descargar-carrera'].forEach(function(id) { document.getElementById(id).classList.toggle('hidden', nombre !== 'carrera'); });
+    ['investigador', 'carrera'].forEach(function(id) {
+      var activo = id === nombre;
+      document.getElementById('reporte-' + id).classList.toggle('hidden', !activo);
+      var boton = document.getElementById('tab-reporte-' + id);
+      boton.setAttribute('aria-selected', activo ? 'true' : 'false');
+      boton.setAttribute('tabindex', activo ? '0' : '-1');
+    });
+  }
+
+  function navegarTabsReportes(event) {
+    if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(event.key) === -1) return;
+    event.preventDefault();
+    var destino = event.key === 'Home' ? 'investigador' : event.key === 'End' ? 'carrera' :
+      submoduloReporteActual === 'investigador' ? 'carrera' : 'investigador';
+    cambiarSubmoduloReportes(destino);
+    document.getElementById('tab-reporte-' + destino).focus();
+  }
+
+  function inicializarModuloReportes() {
+    // FA-012 y FA-013 de CU-005: repositorio alterado (paso 3). Se ocultan los
+    // reportes cargados y se simula la carga cuyo reintento vuelve a fallar.
+    var condicion = typeof condicionRepositorioReportes === 'function' ? condicionRepositorioReportes() : '';
+    if (condicion) {
+      if (reportesCargando) return;
+      reportesCargando = true;
+      datosReportesCache = null;
+      establecerPanelesReportes(false);
+      document.getElementById('estado-reportes').classList.remove('hidden');
+      textoReporte('estado-reportes', 'Cargando datos de investigación…');
+      document.getElementById('reintentar-reportes').classList.add('hidden');
+      document.querySelectorAll('#view-reportes select').forEach(function(el) { el.disabled = true; });
+      setTimeout(function() {
+        reportesCargando = false;
+        // Si la condición se retiró durante la "carga", el módulo recupera su ruta normal.
+        if (typeof condicionRepositorioReportes !== 'function' || !condicionRepositorioReportes()) {
+          inicializarModuloReportes();
+          return;
+        }
+        document.getElementById('estado-reportes').classList.remove('hidden');
+        document.getElementById('estado-reportes').classList.add('reporte-alerta');
+        textoReporte('estado-reportes', condicion === 'estructura'
+          ? 'No se pudieron cargar los reportes. La estructura de los datos del repositorio es inválida. Verifique el origen de los datos e intente nuevamente.'
+          : 'El repositorio de datos de investigación no está disponible en este momento. Verifique la conexión e intente nuevamente.');
+        document.getElementById('reintentar-reportes').classList.remove('hidden');
+      }, 900);
+      return;
+    }
+    if (reportesCargando || datosReportesCache) return;
+    reportesCargando = true;
+    // FA-013: no se presentan cifras hasta completar una carga válida.
+    establecerPanelesReportes(false);
+    document.getElementById('estado-reportes').classList.remove('hidden');
+    textoReporte('estado-reportes', 'Cargando datos de investigación…');
+    document.getElementById('reintentar-reportes').classList.add('hidden');
+    document.querySelectorAll('#view-reportes select').forEach(function(el) { el.disabled = true; });
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(renderizarVistaReportes)
+        .withFailureHandler(function(error) {
+          // FA-012: el servidor marca con ESTRUCTURA los datos inválidos; el resto es FA-013.
+          var estructura = /ESTRUCTURA/.test(String(error && error.message || error));
+          mostrarErrorReportes(true, estructura ? 'No se pudieron cargar los reportes. La estructura de los datos del repositorio es inválida. Verifique el origen de los datos e intente nuevamente.' : '');
+        }).obtenerDatosReportes();
+    } else {
+      renderizarVistaReportes({ investigadores: [] });
+      document.getElementById('estado-reportes').classList.remove('hidden');
+      textoReporte('estado-reportes', 'Vista local: la carga de datos requiere ejecutar la aplicación en Google Apps Script.');
+    }
+  }
+
+  // Visibilidad de los paneles de reportes: se ocultan cuando no hay datos
+  // cargados (estado de error) y se restauran al finalizar una carga válida.
+  function establecerPanelesReportes(visibles) {
+    ['reporte-investigador', 'reporte-carrera'].forEach(function(id) {
+      var panel = document.getElementById(id);
+      if (panel) panel.classList.toggle('hidden', !visibles);
+    });
+    var tabs = document.querySelector('.reporte-tabs');
+    if (tabs) tabs.classList.toggle('hidden', !visibles);
+  }
+
+  function mostrarErrorReportes(desdeServicio, texto) {
+    reportesCargando = false;
+    establecerPanelesReportes(false);
+    document.getElementById('estado-reportes').classList.remove('hidden');
+    document.getElementById('estado-reportes').classList.add('reporte-alerta');
+    // FA-013: fallo del servicio se informa como repositorio no disponible (Reintentar).
+    textoReporte('estado-reportes', texto || (desdeServicio ? 'El repositorio no está disponible. Intente nuevamente.' : 'No se pudieron cargar los reportes. Intenta nuevamente.'));
+    document.getElementById('reintentar-reportes').classList.remove('hidden');
+  }
+
+  // FIN: 7. REPORTES POR INVESTIGADOR / CARRERA Y LÍNEA DE INVESTIGACIÓN
+
+  // INICIO: Utilidades y preparación de datos de reportes
+
+  function escaparReporte(valor) {
+    return String(valor == null ? '' : valor).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function textoReporte(id, valor) {
+    var el = document.getElementById(id);
+    if (el) el.innerText = valor == null || valor === '' ? '—' : valor;
+  }
+
+  function valorReporte(id) {
+    var el = document.getElementById(id);
+    return el ? el.value : '';
+  }
+
+  function investigadoresReporte() {
+    return datosReportesCache ? datosReportesCache.investigadores : [];
+  }
+
+  function unicosReporte(valores) {
+    return valores.filter(function(v, i, lista) { return v && lista.indexOf(v) === i; }).sort(function(a, b) { return a.localeCompare(b, 'es'); });
+  }
+
+  function lineasInvestigador(inv) {
+    return unicosReporte(inv.lineas || [inv.linea1, inv.linea2]);
+  }
+
+  function llenarSelectReporte(id, opciones, etiquetaTodos) {
+    var select = document.getElementById(id);
+    var anterior = select.value;
+    var lista = opciones.map(function(item) { return typeof item === 'string' ? { valor: item, texto: item } : item; });
+    // FA-009 de CU-005: sin opciones compatibles el selector se muestra vacío y deshabilitado.
+    if (!lista.length) lista.push({ valor: '', texto: 'Sin opciones disponibles' });
+    else if (etiquetaTodos) lista.unshift({ valor: '', texto: etiquetaTodos });
+    select.innerHTML = lista.map(function(item) {
+      return '<option value="' + escaparReporte(item.valor) + '">' + escaparReporte(item.texto) + '</option>';
+    }).join('');
+    select.value = lista.some(function(item) { return item.valor === anterior; }) ? anterior : lista[0].valor;
+    select.disabled = opciones.length === 0;
+  }
+
+  function renderizarVistaReportes(data) {
+    if (!data || !Array.isArray(data.investigadores)) { mostrarErrorReportes(); return; }
+    establecerPanelesReportes(true);
+    document.getElementById('estado-reportes').classList.remove('reporte-alerta');
+    reportesCargando = false;
+    datosReportesCache = { investigadores: data.investigadores };
+    document.querySelectorAll('#view-reportes select').forEach(function(el) { el.disabled = false; });
+    document.getElementById('estado-reportes').textContent = investigadoresReporte().length ? '' : 'No hay investigadores registrados. Los reportes se muestran sin resultados.';
+    document.getElementById('estado-reportes').classList.toggle('hidden', investigadoresReporte().length > 0);
+    document.getElementById('reintentar-reportes').classList.add('hidden');
+    actualizarAvisoReportesCerrado();
+    iniciarFiltrosInvestigador();
+    llenarSelectReporte('carrera-select', unicosReporte(investigadoresReporte().map(function(inv) { return inv.carrera; })), 'Todas las carreras');
+    filtrarInvestigadoresReporte();
+    cambiarCarreraReporte();
+    cambiarSubmoduloReportes(submoduloReporteActual);
+  }
+
+  function cargarDatosInvestigador() {
+    var inv = investigadoresReporte().find(function(item) { return item.id === valorReporte('select-investigador'); });
+    var campos = { 'inv-nombre': 'nombre', 'inv-dni': 'dni', 'inv-correo': 'correo', 'inv-dedicacion': 'dedicacion',
+      'inv-categoria': 'categoria', 'inv-renacyt-nivel': 'renacytNivel', 'inv-renacyt-codigo': 'renacytCodigo', 'inv-carrera': 'carrera' };
+    Object.keys(campos).forEach(function(id) { textoReporte(id, inv ? inv[campos[id]] : '—'); });
+    if (!inv) textoReporte('inv-nombre', 'Sin investigador seleccionado');
+    textoReporte('inv-categoria-perfil', inv ? inv.categoria : '—');
+    document.getElementById('inv-clasificacion').setAttribute('data-nivel', inv && valorRenacytReporte(inv.renacytNivel) ? String(valorRenacytReporte(inv.renacytNivel)) : 'sin-clasificacion');
+    var lineas = inv ? lineasInvestigador(inv) : [];
+    textoReporte('inv-linea1', lineas[0]);
+    textoReporte('inv-linea2', lineas.slice(1).join(' · '));
+    textoReporte('inv-renacyt-grupo', inv ? inv.renacytGrupo : '—');
+    var enlace = document.getElementById('inv-ctivitae');
+    var perfilUrl = inv ? urlReporte(inv.ctivitaeUrl) : '';
+    var url = inv ? perfilUrl || 'https://ctivitae.concytec.gob.pe' : '';
+    enlace.innerText = perfilUrl ? 'Ver perfil CTI Vitae ↗' : 'Consultar CTI Vitae ↗';
+    enlace.classList.toggle('hidden', !url);
+    if (url) enlace.setAttribute('href', url);
+    else enlace.removeAttribute('href');
+    var dias = inv && Array.isArray(inv.dias) ? inv.dias : [];
+    document.getElementById('inv-dias').innerHTML = dias.length ? ['L', 'Ma', 'Mi', 'J', 'V'].map(function(dia) {
+      var activo = dias.indexOf(dia) !== -1;
+      return '<span class="' + (activo ? 'dia-activo' : '') + '" title="' + (activo ? 'Con dedicación registrada' : 'Sin dedicación registrada') + '">' + dia + '<span class="sr-only">' + (activo ? ': con dedicación' : ': sin dedicación') + '</span></span>';
+    }).join('') : '<p class="reporte-nota">Sin días de dedicación registrados.</p>';
+    actualizarReporteInvestigador();
+  }
+
+  function cicloReporte() {
+    return document.getElementById('selected-ciclo-label').innerText;
+  }
+
+  function registrosReporte(investigadores, campo, linea, ciclo) {
+    var registros = [];
+    var porId = Object.create(null);
+    investigadores.forEach(function(inv) {
+      (inv[campo] || []).forEach(function(item, indice) {
+        if (linea && (item.linea ? item.linea !== linea : lineasInvestigador(inv).indexOf(linea) === -1)) return;
+        if (ciclo && item.ciclo !== ciclo) return;
+        var clave = item.id || inv.id + '-' + indice;
+        if (porId[clave]) {
+          if (porId[clave].autores.indexOf(inv.nombre) === -1) porId[clave].autores.push(inv.nombre);
+          return;
+        }
+        var registro = Object.assign({}, item, { autores: [inv.nombre] });
+        registros.push(registro);
+        porId[clave] = registro;
+      });
+    });
+    return registros;
+  }
+
+  function coleccionReporte(investigadores, linea, ciclo, prefijo) {
+    return {
+      publicaciones: registrosReporte(investigadores, 'publicaciones', linea, ciclo).filter(function(p) {
+        return !valorReporte(prefijo + '-tipo-publicacion') || p.tipo === valorReporte(prefijo + '-tipo-publicacion');
+      }),
+      proyectos: registrosReporte(investigadores, 'proyectos', linea, ciclo).filter(function(p) {
+        return !valorReporte(prefijo + '-tipo-proyecto') || p.tipo === valorReporte(prefijo + '-tipo-proyecto');
+      }),
+      eventos: registrosReporte(investigadores, 'eventos', linea, ciclo).filter(function(e) {
+        return !valorReporte(prefijo + '-estado-evento') || e.estado === valorReporte(prefijo + '-estado-evento');
+      })
+    };
+  }
+
+  // FIN: Utilidades y preparación de datos de reportes
+
+  // INICIO: Filtros por carrera, línea e investigador
+
+  function cambiarCarreraReporte() {
+    var lista = investigadoresReporte().filter(function(inv) { return !valorReporte('carrera-select') || inv.carrera === valorReporte('carrera-select'); });
+    var lineas = [];
+    lista.forEach(function(inv) { lineas = lineas.concat(lineasInvestigador(inv)); });
+    llenarSelectReporte('carrera-linea', unicosReporte(lineas), 'Todas las líneas');
+    cambiarLineaReporte();
+  }
+
+  function cambiarLineaReporte() {
+    var lista = investigadoresCarreraReporte(false);
+    llenarSelectReporte('carrera-investigador', lista.map(function(inv) { return { valor: inv.id, texto: inv.nombre }; }), 'Todos los investigadores');
+    actualizarReporteCarrera();
+  }
+
+  function investigadoresCarreraReporte(filtrarPersona) {
+    return investigadoresReporte().filter(function(inv) {
+      return (!valorReporte('carrera-select') || inv.carrera === valorReporte('carrera-select')) &&
+        (!valorReporte('carrera-linea') || lineasInvestigador(inv).indexOf(valorReporte('carrera-linea')) !== -1) &&
+        (!filtrarPersona || !valorReporte('carrera-investigador') || inv.id === valorReporte('carrera-investigador'));
+    });
+  }
+
+  var datosGraficosCarrera = { publicaciones: [], proyectos: [], eventos: [] };
+  var filtrosGraficosCarrera = {
+    series: { temporalidad: 'ciclo', ciclo: '', indicadores: ['publicaciones', 'proyectos', 'internos', 'externos', 'eventos'] },
+    histograma: { temporalidad: 'ciclo', ciclo: '', agrupacion: 'ranking' },
+    proyectos: { temporalidad: 'ciclo', ciclo: '', agrupacion: 'tipo' },
+    eventos: { temporalidad: 'ciclo', ciclo: '', agrupacion: 'estado' }
+  };
+  var graficoCarreraActual = 'series';
+
+  // Fechas de calendario en UTC: evita desplazar días por la zona horaria del navegador.
+  // FIN: Filtros por carrera, línea e investigador
+
+  // INICIO: Fechas, agrupaciones y filtros de gráficos por carrera
+
+  function fechaGraficoCarrera(valor) {
+    var texto = String(valor || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(texto)) return null;
+    var fecha = new Date(texto + 'T00:00:00Z');
+    return isNaN(fecha.getTime()) || fecha.toISOString().slice(0, 10) !== texto ? null : fecha;
+  }
+
+  function inicioPeriodoGraficoCarrera(fecha, temporalidad) {
+    var inicio = new Date(fecha.getTime());
+    if (temporalidad === 'mes') inicio.setUTCDate(1);
+    if (temporalidad === 'semana') inicio.setUTCDate(inicio.getUTCDate() - (inicio.getUTCDay() + 6) % 7);
+    return inicio;
+  }
+
+  function semanaGraficoCarrera(fecha) {
+    var jueves = inicioPeriodoGraficoCarrera(fecha, 'semana');
+    jueves.setUTCDate(jueves.getUTCDate() + 3);
+    var anio = jueves.getUTCFullYear();
+    var numero = Math.ceil(((jueves - new Date(Date.UTC(anio, 0, 1))) / 86400000 + 1) / 7);
+    return anio + '-W' + ('0' + numero).slice(-2);
+  }
+
+  function limitesPeriodoGraficoCarrera(valor, temporalidad) {
+    var inicio;
+    if (temporalidad === 'mes' && /^\d{4}-\d{2}$/.test(valor)) inicio = fechaGraficoCarrera(valor + '-01');
+    if (temporalidad === 'dia') inicio = fechaGraficoCarrera(valor);
+    if (temporalidad === 'semana' && /^\d{4}-W\d{2}$/.test(valor)) {
+      inicio = inicioPeriodoGraficoCarrera(new Date(Date.UTC(Number(valor.slice(0, 4)), 0, 4)), 'semana');
+      inicio.setUTCDate(inicio.getUTCDate() + (Number(valor.slice(-2)) - 1) * 7);
+      if (semanaGraficoCarrera(inicio) !== valor) return null;
+    }
+    if (!inicio) return null;
+    var fin = new Date(inicio.getTime());
+    if (temporalidad === 'mes') fin = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth() + 1, 0));
+    if (temporalidad === 'semana') fin.setUTCDate(fin.getUTCDate() + 6);
+    return { desde: inicio.toISOString().slice(0, 10), hasta: fin.toISOString().slice(0, 10) };
+  }
+
+  function etiquetaPeriodoGraficoCarrera(fecha, temporalidad) {
+    if (temporalidad === 'semana') return 'Semana ' + semanaGraficoCarrera(fecha).replace('-W', ' · ');
+    return fecha.toLocaleDateString('es-PE', temporalidad === 'mes' ? { month: 'short', year: 'numeric', timeZone: 'UTC' } : { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  }
+
+  function fechaRegistroGraficoCarrera(item, tipo) {
+    return fechaGraficoCarrera(tipo === 'proyectos' ? item.fechaInicio || item.fecha : item.fecha);
+  }
+
+  function datosGraficoCarrera(nombre) {
+    var filtro = filtrosGraficosCarrera[nombre];
+    var temporalidad = filtro.temporalidad || 'ciclo';
+    var desde = temporalidad !== 'ciclo' && filtro.periodoDesde ? limitesPeriodoGraficoCarrera(filtro.periodoDesde, temporalidad) : null;
+    var hasta = temporalidad !== 'ciclo' && filtro.periodoHasta ? limitesPeriodoGraficoCarrera(filtro.periodoHasta, temporalidad) : null;
+    var datos = {};
+    ['publicaciones', 'proyectos', 'eventos'].forEach(function(tipo) {
+      datos[tipo] = datosGraficosCarrera[tipo].filter(function(item) {
+        if (filtro.ciclo && item.ciclo !== filtro.ciclo) return false;
+        if (filtro.cicloDesde && (!item.ciclo || item.ciclo.localeCompare(filtro.cicloDesde, 'es', { numeric: true }) < 0)) return false;
+        if (filtro.cicloHasta && (!item.ciclo || item.ciclo.localeCompare(filtro.cicloHasta, 'es', { numeric: true }) > 0)) return false;
+        if (temporalidad !== 'ciclo') {
+          var fecha = fechaRegistroGraficoCarrera(item, tipo);
+          if (!fecha || (filtro.periodoDesde && !desde) || (filtro.periodoHasta && !hasta)) return false;
+          var texto = fecha.toISOString().slice(0, 10);
+          if (desde && texto < desde.desde) return false;
+          if (hasta && texto > hasta.hasta) return false;
+        }
+        return true;
+      });
+    });
+    return datos;
+  }
+
+  function gruposGraficoCarrera(nombre, tipo) {
+    var filtro = filtrosGraficosCarrera[nombre];
+    var campo = filtro.agrupacion;
+    if (campo === 'periodo') {
+      var datos = { publicaciones: [], proyectos: [], eventos: [] };
+      datos[tipo] = datosGraficoCarrera(nombre)[tipo];
+      return seriesCarreraReporte(datos, filtro.temporalidad).map(function(fila) { return { nombre: fila.ciclo, valor: fila[tipo] }; });
+    }
+    return agruparReporte(datosGraficoCarrera(nombre)[tipo].map(function(item) {
+      var grupo = campo === 'ranking' ? datoColeccionInv(item, 'calidad') : item[campo];
+      return { grupo: grupo };
+    }), 'grupo');
+  }
+
+  function sincronizarFiltrosGraficosCarrera() {
+    var ciclos = [];
+    ['publicaciones', 'proyectos', 'eventos'].forEach(function(tipo) { ciclos = ciclos.concat(datosGraficosCarrera[tipo].map(function(item) { return item.ciclo; })); });
+    Object.keys(filtrosGraficosCarrera).forEach(function(nombre) {
+      ['ciclo', 'cicloDesde', 'cicloHasta'].forEach(function(clave) {
+        if (filtrosGraficosCarrera[nombre][clave] && ciclos.indexOf(filtrosGraficosCarrera[nombre][clave]) === -1) filtrosGraficosCarrera[nombre][clave] = '';
+      });
+    });
+  }
+
+  function colorGraficoReporte(token, respaldo) {
+    if (typeof window.getComputedStyle === 'function') {
+      var color = window.getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+      if (color) return color;
+    }
+    return respaldo;
+  }
+
+  function renderizarGraficosCarrera() {
+    renderizarSeriesReporte(datosGraficoCarrera('series'), filtrosGraficosCarrera.series.indicadores, filtrosGraficosCarrera.series.temporalidad);
+    renderizarColumnasCarrera('carrera-histograma', gruposGraficoCarrera('histograma', 'publicaciones'), 'Publicaciones');
+    ['proyectos', 'eventos'].forEach(function(tipo) {
+      var renderizar = filtrosGraficosCarrera[tipo].agrupacion === 'periodo' ? renderizarBarrasReporte : renderizarPastelReporte;
+      renderizar('carrera-grafico-' + tipo, gruposGraficoCarrera(tipo, tipo), tipo === 'proyectos' ? 'Proyectos' : 'Eventos');
+    });
+  }
+
+  function abrirFiltroGraficoCarrera(nombre) {
+    graficoCarreraActual = nombre;
+    renderizarFiltroGraficoCarrera();
+    var dialogo = document.getElementById('carrera-dialogo-grafico');
+    if (!dialogo.open) dialogo.showModal();
+  }
+
+  function renderizarFiltroGraficoCarrera() {
+    var nombre = graficoCarreraActual;
+    var etiquetas = { series: 'Series temporales', histograma: 'Publicaciones', proyectos: 'Proyectos', eventos: 'Eventos' };
+    textoReporte('carrera-filtro-grafico-titulo', 'Filtros · ' + etiquetas[nombre]);
+    var filtro = filtrosGraficosCarrera[nombre];
+    var temporalidad = filtro.temporalidad || 'ciclo';
+    var ciclos = [];
+    ['publicaciones', 'proyectos', 'eventos'].forEach(function(tipo) { ciclos = ciclos.concat(datosGraficosCarrera[tipo].map(function(item) { return item.ciclo; }).filter(Boolean)); });
+    var html = '<label class="reporte-campo"><span>Temporalidad</span><select onchange="cambiarFiltroGraficoCarrera(\'temporalidad\',this.value)">' + [['ciclo', 'Por ciclo académico'], ['mes', 'Por mes'], ['semana', 'Por semana (lunes a domingo)'], ['dia', 'Por día']].map(function(par) { return '<option value="' + par[0] + '"' + (temporalidad === par[0] ? ' selected' : '') + '>' + par[1] + '</option>'; }).join('') + '</select></label>';
+    html += '<fieldset class="carrera-rango-temporal"><legend>Rango de ciclos</legend>' + [['cicloDesde', 'Ciclo inicial'], ['cicloHasta', 'Ciclo final']].map(function(par) {
+      return '<label class="reporte-campo"><span>' + par[1] + '</span><select onchange="cambiarFiltroGraficoCarrera(\'' + par[0] + '\',this.value)"><option value="">Sin límite</option>' + unicosReporte(ciclos).map(function(ciclo) { return '<option value="' + escaparReporte(ciclo) + '"' + (filtro[par[0]] === ciclo ? ' selected' : '') + '>' + escaparReporte(ciclo) + '</option>'; }).join('') + '</select></label>';
+    }).join('') + '</fieldset>';
+    if (temporalidad !== 'ciclo') {
+      var tipo = { mes: 'month', semana: 'week', dia: 'date' }[temporalidad];
+      html += '<fieldset class="carrera-rango-temporal"><legend>Intervalo de ' + { mes: 'meses', semana: 'semanas', dia: 'días' }[temporalidad] + '</legend>' + [['periodoDesde', 'Desde'], ['periodoHasta', 'Hasta']].map(function(par) {
+        return '<label class="reporte-campo"><span>' + par[1] + '</span><input type="' + tipo + '" value="' + escaparReporte(filtro[par[0]] || '') + '" onchange="if(this.validity.valid)cambiarFiltroGraficoCarrera(\'' + par[0] + '\',this.value)"></label>';
+      }).join('') + '</fieldset>';
+    }
+    if (nombre === 'series') {
+      html += '<fieldset class="inv-opciones-columna"><legend>Indicadores</legend>' + [['publicaciones', 'Publicaciones'], ['proyectos', 'Proyectos totales'], ['internos', 'Proyectos internos'], ['externos', 'Proyectos externos'], ['eventos', 'Eventos']].map(function(par) {
+        return '<label><input type="checkbox" value="' + par[0] + '" onchange="cambiarIndicadorGraficoCarrera(this)"' + (filtro.indicadores.indexOf(par[0]) !== -1 ? ' checked' : '') + '>' + par[1] + '</label>';
+      }).join('') + '</fieldset>';
+    } else {
+      var opciones = { histograma: [['ranking', 'Ranking / Cuartil'], ['indexacion', 'Indexación'], ['tipo', 'Tipo'], ['estado', 'Estado']], proyectos: [['tipo', 'Financiamiento'], ['estado', 'Estado'], ['tipoProyecto', 'Tipo de proyecto']], eventos: [['estado', 'Estado'], ['tipo', 'Tipo'], ['modalidad', 'Modalidad'], ['rol', 'Rol']] }[nombre].concat([['periodo', 'Periodo seleccionado']]);
+      html += '<label class="reporte-campo"><span>Agrupar por</span><select onchange="cambiarFiltroGraficoCarrera(\'agrupacion\',this.value)">' + opciones.map(function(par) { return '<option value="' + par[0] + '"' + (filtro.agrupacion === par[0] ? ' selected' : '') + '>' + par[1] + '</option>'; }).join('') + '</select></label>';
+    }
+    html += '<button type="button" class="inv-boton-filtros" onclick="restablecerFiltroGraficoCarrera()">Restablecer filtros de este gráfico</button>';
+    document.getElementById('carrera-filtro-grafico-campos').innerHTML = html;
+  }
+
+  function cambiarFiltroGraficoCarrera(clave, valor) {
+    var filtro = filtrosGraficosCarrera[graficoCarreraActual];
+    if (clave === 'temporalidad' && ['ciclo', 'mes', 'semana', 'dia'].indexOf(valor) === -1) return;
+    if ((clave === 'periodoDesde' || clave === 'periodoHasta') && valor && !limitesPeriodoGraficoCarrera(valor, filtro.temporalidad)) return;
+    filtro[clave] = valor;
+    var renovarControles = clave === 'temporalidad';
+    if (clave === 'temporalidad') { filtro.periodoDesde = ''; filtro.periodoHasta = ''; }
+    if (clave === 'cicloDesde' || clave === 'cicloHasta') filtro.ciclo = '';
+    // Al invertir un intervalo, se libera el extremo anterior para completarlo de nuevo.
+    if (filtro.cicloDesde && filtro.cicloHasta && filtro.cicloDesde.localeCompare(filtro.cicloHasta, 'es', { numeric: true }) > 0) { filtro[clave === 'cicloDesde' ? 'cicloHasta' : 'cicloDesde'] = ''; renovarControles = true; }
+    if (filtro.periodoDesde && filtro.periodoHasta && filtro.periodoDesde > filtro.periodoHasta) { filtro[clave === 'periodoDesde' ? 'periodoHasta' : 'periodoDesde'] = ''; renovarControles = true; }
+    renderizarGraficosCarrera();
+    if (renovarControles && document.getElementById('carrera-dialogo-grafico').open) renderizarFiltroGraficoCarrera();
+  }
+
+  function restablecerFiltroGraficoCarrera() {
+    var filtro = filtrosGraficosCarrera[graficoCarreraActual];
+    filtro.ciclo = ''; filtro.cicloDesde = ''; filtro.cicloHasta = ''; filtro.temporalidad = 'ciclo'; filtro.periodoDesde = ''; filtro.periodoHasta = '';
+    if (graficoCarreraActual === 'series') filtro.indicadores = ['publicaciones', 'proyectos', 'internos', 'externos', 'eventos'];
+    else filtro.agrupacion = { histograma: 'ranking', proyectos: 'tipo', eventos: 'estado' }[graficoCarreraActual];
+    renderizarGraficosCarrera();
+    renderizarFiltroGraficoCarrera();
+  }
+
+  function cambiarIndicadorGraficoCarrera(control) {
+    var indicadores = filtrosGraficosCarrera.series.indicadores.filter(function(clave) { return clave !== control.value; });
+    if (control.checked) indicadores.push(control.value);
+    filtrosGraficosCarrera.series.indicadores = indicadores;
+    renderizarGraficosCarrera();
+  }
+
+  // FIN: Fechas, agrupaciones y filtros de gráficos por carrera
+
+  // INICIO: Preparación de la descarga por carrera
+
+  function abrirDescargaCarrera() {
+    // FA-008 de CU-005: operación protegida; bloqueo por sesión inválida o expirada.
+    if (typeof probarOperacionProtegida === 'function' && !probarOperacionProtegida()) return;
+    textoReporte('carrera-descarga-estado', 'Selecciona las secciones que deseas descargar.');
+    prepararElementosDescarga('carrera');
+    document.getElementById('carrera-dialogo-descarga').showModal();
+  }
+
+  function datosDescargaCarrera(secciones) {
+    var reporte = { titulo: 'Reporte por carrera y línea', generado: new Date().toISOString(), carrera: valorReporte('carrera-select') || 'Todas', linea: valorReporte('carrera-linea') || 'Todas', periodo: valorReporte('carrera-periodo'), ciclo: cicloReporte(), secciones: {} };
+    secciones.forEach(function(clave) {
+      if (columnasColeccionInv[clave]) reporte.secciones[clave] = registrosColeccionInv('carrera-' + clave);
+      if (clave === 'investigadores') reporte.secciones[clave] = investigadoresCarreraReporte(true);
+      if (clave === 'estadisticas') {
+        reporte.secciones[clave] = {};
+        Object.keys(estadisticasCarreraActual || {}).forEach(function(grupo) {
+          if (grupo !== 'comparativas') reporte.secciones[clave][grupo] = estadisticasCarreraActual[grupo];
+        });
+      }
+      if (clave === 'comparativas') reporte.secciones[clave] = estadisticasCarreraActual ? estadisticasCarreraActual.comparativas : {};
+      if (clave === 'graficos') reporte.secciones[clave] = { filtros: filtrosGraficosCarrera, series: seriesCarreraReporte(datosGraficoCarrera('series'), filtrosGraficosCarrera.series.temporalidad), publicaciones: datosGraficoCarrera('histograma').publicaciones, proyectos: datosGraficoCarrera('proyectos').proyectos, eventos: datosGraficoCarrera('eventos').eventos };
+    });
+    return reporte;
+  }
+
+  // FIN: Preparación de la descarga por carrera
+
+  // INICIO: Cálculo de estadísticas y comparativas por carrera
+
+  var estadisticasCarreraActual = null;
+
+  function numeroEstadistica(valor) {
+    if (valor == null || valor === '' || typeof valor === 'boolean') return null;
+    var numero = Number(valor);
+    return Number.isFinite(numero) && numero >= 0 ? numero : null;
+  }
+
+  function sumarImportesEstadistica(lista, campo) {
+    var valores = lista.map(function(item) { return numeroEstadistica(item[campo]); }).filter(function(valor) { return valor != null; });
+    return { valor: valores.length ? valores.reduce(function(suma, valor) { return suma + valor; }, 0) : null, registrados: valores.length, total: lista.length };
+  }
+
+  function porcentajeEstadistica(parte, total) { return total ? 100 * parte / total : null; }
+
+  function cuartilEstadistica(pub) {
+    var valor = pub.cuartil || pub.ranking || '';
+    return /^Q[1-4]$/.test(valor) ? valor : '';
+  }
+
+  function mediaHIndexEstadistica(publicaciones, tipo) {
+    var valores = publicaciones.filter(function(pub) { return (!tipo ? ['Journal', 'Conferencia'].indexOf(pub.tipo) !== -1 : pub.tipo === tipo) && numeroEstadistica(pub.hIndex) != null; }).map(function(pub) { return Number(pub.hIndex); });
+    return valores.length ? valores.reduce(function(suma, valor) { return suma + valor; }, 0) / valores.length : null;
+  }
+
+  function agruparEstadistica(lista, obtener) {
+    var grupos = Object.create(null);
+    lista.forEach(function(item) { var clave = obtener(item) || 'No registrado'; grupos[clave] = (grupos[clave] || 0) + 1; });
+    return Object.keys(grupos).sort(function(a, b) { return a.localeCompare(b, 'es', { numeric: true }); }).map(function(nombre) { return { nombre: nombre, valor: grupos[nombre] }; });
+  }
+
+  function cicloFechaEstadistica(fecha) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha || '')) return null;
+    var partes = fecha.split('-');
+    var mes = Number(partes[1]);
+    if (mes < 1 || mes > 12) return null;
+    return 'Ciclo ' + partes[0] + (mes <= 6 ? '-I' : '-II');
+  }
+
+  function participacionesEstadistica(eventos) {
+    return eventos.reduce(function(suma, evento) { return suma + Math.max(1, (evento.autores || []).length); }, 0);
+  }
+
+  function calcularEstadisticasCarrera(lista, datos) {
+    var pub = datos.publicaciones;
+    var pro = datos.proyectos;
+    var eve = datos.eventos;
+    var renacyt = lista.filter(function(inv) { return valorRenacytReporte(inv.renacytNivel) > 0; }).length;
+    var q12 = pub.filter(function(p) { return ['Q1', 'Q2'].indexOf(cuartilEstadistica(p)) !== -1; }).length;
+    var conCuartil = pub.filter(function(p) { return !!cuartilEstadistica(p); }).length;
+    var financiacion = sumarImportesEstadistica(pro, 'presupuesto');
+    var ejecutado = sumarImportesEstadistica(pro, 'ejecutado');
+    var paresImportes = pro.filter(function(p) { return numeroEstadistica(p.presupuesto) != null && numeroEstadistica(p.ejecutado) != null; });
+    var baseEjecucion = paresImportes.reduce(function(suma, p) { return suma + Number(p.presupuesto); }, 0);
+    var sumaEjecucion = paresImportes.reduce(function(suma, p) { return suma + Number(p.ejecutado); }, 0);
+    var conPublicaciones = lista.filter(function(inv) { return pub.some(function(p) { return (p.autores || []).indexOf(inv.nombre) !== -1; }); }).length;
+    var conProyectos = lista.filter(function(inv) { return pro.some(function(p) { return (p.autores || []).indexOf(inv.nombre) !== -1; }); }).length;
+    var contribuciones = lista.reduce(function(suma, inv) { return suma + ['publicaciones', 'proyectos', 'eventos'].reduce(function(total, tipo) { return total + datos[tipo].filter(function(item) { return (item.autores || []).indexOf(inv.nombre) !== -1; }).length; }, 0); }, 0);
+    var todos = pub.concat(pro, eve);
+    var ciclos = unicosReporte(todos.map(function(item) { return item.ciclo; }).filter(Boolean));
+    var activosPorCiclo = ciclos.map(function(ciclo) {
+      return { nombre: ciclo, valor: lista.filter(function(inv) { return todos.some(function(item) { return item.ciclo === ciclo && (item.autores || []).indexOf(inv.nombre) !== -1; }); }).length };
+    });
+    var finalizados = pro.filter(function(p) { return normalizarBusquedaInv(p.estado) === 'finalizado'; });
+    var realizados = eve.filter(function(e) { return normalizarBusquedaInv(e.estado) === 'realizado'; });
+    var ambito = function(e) { var valor = normalizarBusquedaInv(e.ambito || e.alcance || ''); return valor === 'nacional' ? 'Nacional' : valor === 'internacional' ? 'Internacional' : 'Ámbito no registrado'; };
+    return {
+      kpis: { investigadoresActivos: lista.length, investigadoresRenacyt: renacyt, porcentajeRenacyt: porcentajeEstadistica(renacyt, lista.length), publicaciones: pub.length, publicacionesQ12: q12, proyectosActivos: pro.filter(function(p) { return ['aprobado', 'en desarrollo', 'en ejecucion'].indexOf(normalizarBusquedaInv(p.estado)) !== -1; }).length, financiamiento: financiacion.valor, eventosRealizados: participacionesEstadistica(realizados), productividad: lista.length ? pub.length / lista.length : null },
+      produccion: {
+        porCiclo: agruparEstadistica(pub, function(p) { return p.ciclo; }),
+        porAnio: agruparEstadistica(pub, function(p) { var anio = String(p.ciclo || '').match(/\b(20\d{2})\b/); return anio ? anio[1] : /^\d{4}-/.test(p.fecha || '') ? p.fecha.slice(0, 4) : null; }),
+        porTipo: agruparEstadistica(pub, function(p) { return p.tipo === 'Journal' ? 'Journals' : p.tipo === 'Conferencia' ? 'Conferencias' : 'Otras'; }),
+        porIndexacion: agruparEstadistica(pub, function(p) { return /scopus/i.test(p.indexacion || '') ? 'Scopus' : /wos|web of science/i.test(p.indexacion || '') ? 'WoS' : normalizarBusquedaInv(p.indexacion) === 'sin indexacion' ? 'Sin indexación' : p.indexacion ? 'Otras' : null; }),
+        porCuartil: ['Q1', 'Q2', 'Q3', 'Q4'].map(function(q) { return { nombre: q, valor: pub.filter(function(p) { return cuartilEstadistica(p) === q; }).length }; }),
+        sinCuartil: pub.length - conCuartil, hIndex: mediaHIndexEstadistica(pub), hIndexJournals: mediaHIndexEstadistica(pub, 'Journal'), hIndexConferencias: mediaHIndexEstadistica(pub, 'Conferencia'),
+        porEstado: agruparEstadistica(pub, function(p) { return p.estado; }), porcentajeQ12: porcentajeEstadistica(q12, conCuartil), conCuartil: conCuartil
+      },
+      investigadores: { porCarrera: agruparEstadistica(lista, function(i) { return i.carrera; }), porRenacyt: agruparEstadistica(lista, function(i) { return i.renacytNivel; }), porCategoria: agruparEstadistica(lista, function(i) { return i.categoria; }), porDedicacion: agruparEstadistica(lista, function(i) { return i.dedicacion; }), conPublicaciones: conPublicaciones, sinPublicaciones: lista.length - conPublicaciones, conProyectos: conProyectos, contribucionesPromedio: lista.length ? contribuciones / lista.length : null, actividadPorCiclo: activosPorCiclo },
+      proyectos: { porTipo: agruparEstadistica(pro, function(p) { return p.tipo; }), porEstado: agruparEstadistica(pro, function(p) { return p.estado; }), iniciadosPorCiclo: agruparEstadistica(pro.filter(function(p) { return cicloFechaEstadistica(p.fechaInicio || p.inicio || p.fecha); }), function(p) { return cicloFechaEstadistica(p.fechaInicio || p.inicio || p.fecha); }), finalizadosPorCiclo: agruparEstadistica(finalizados.filter(function(p) { return cicloFechaEstadistica(p.fechaFin || p.fin); }), function(p) { return cicloFechaEstadistica(p.fechaFin || p.fin); }), finalizadosSinFecha: finalizados.filter(function(p) { return !cicloFechaEstadistica(p.fechaFin || p.fin); }).length, presupuesto: financiacion, ejecutado: ejecutado, porcentajeEjecucion: porcentajeEstadistica(sumaEjecucion, baseEjecucion), registrosEjecucion: paresImportes.length, externo: sumarImportesEstadistica(pro.filter(function(p) { return p.tipo === 'Externo'; }), 'presupuesto'), porArea: agruparEstadistica(pro, function(p) { return p.area || p.linea; }), porFinanciador: agruparEstadistica(pro, function(p) { return p.financiador; }), tasaFinalizacion: porcentajeEstadistica(finalizados.length, pro.length) },
+      eventos: { participaciones: participacionesEstadistica(eve), realizadosPorCiclo: agruparEstadistica(realizados, function(e) { return e.ciclo; }), porTipo: agruparEstadistica(eve, function(e) { return e.tipo; }), porRol: agruparEstadistica(eve, function(e) { return e.rol; }), porModalidad: agruparEstadistica(eve, function(e) { return e.modalidad; }), porAmbito: agruparEstadistica(eve, ambito) }
+    };
+  }
+
+  function datosComparativaCarrera(lista, linea) {
+    var datos = coleccionReporte(lista, linea || '', valorReporte('carrera-periodo') === 'todos' ? '' : cicloReporte(), 'carrera');
+    ['publicaciones', 'proyectos', 'eventos'].forEach(function(tipo, indice) { datos[tipo] = filtrarRegistrosInv(datos[tipo], ['pub', 'pro', 'eve'][indice], 'carrera'); });
+    return datos;
+  }
+
+  function calcularComparativasCarrera() {
+    var todas = investigadoresReporte();
+    function resumen(lista, linea, nombre) {
+      var datos = datosComparativaCarrera(lista, linea);
+      var renacyt = lista.filter(function(inv) { return valorRenacytReporte(inv.renacytNivel) > 0; }).length;
+      return { nombre: nombre, investigadores: lista.length, publicaciones: datos.publicaciones.length, q12: datos.publicaciones.filter(function(p) { return ['Q1', 'Q2'].indexOf(cuartilEstadistica(p)) !== -1; }).length, proyectosFinalizados: datos.proyectos.filter(function(p) { return p.estado === 'Finalizado'; }).length, financiamiento: sumarImportesEstadistica(datos.proyectos, 'presupuesto').valor, productividad: lista.length ? datos.publicaciones.length / lista.length : null, porcentajeRenacyt: porcentajeEstadistica(renacyt, lista.length), ciclos: seriesCarreraReporte(datos) };
+    }
+    var carreras = unicosReporte(todas.map(function(i) { return i.carrera; }));
+    var lineas = unicosReporte(todas.reduce(function(lista, inv) { return lista.concat(lineasInvestigador(inv)); }, []));
+    return { carreras: carreras.map(function(nombre) { return resumen(todas.filter(function(i) { return i.carrera === nombre; }), '', nombre); }), lineas: lineas.map(function(nombre) { return resumen(todas.filter(function(i) { return lineasInvestigador(i).indexOf(nombre) !== -1; }), nombre, nombre); }) };
+  }
+
+  // FIN: Cálculo de estadísticas y comparativas por carrera
+
+  // INICIO: Presentación de estadísticas y rankings
+
+  function formatoEstadistica(valor, tipo) {
+    if (valor == null) return 'No registrado';
+    if (tipo === 'moneda') return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', maximumFractionDigits: 0 }).format(valor);
+    return new Intl.NumberFormat('es-PE', { maximumFractionDigits: tipo === 'entero' ? 0 : 2 }).format(valor) + (tipo === 'porcentaje' ? '%' : '');
+  }
+
+  function tablaEstadistica(titulo, filas, encabezados) {
+    return '<section class="carrera-estadistica-bloque"><h4>' + escaparReporte(titulo) + '</h4>' + (filas.length ? '<div class="reporte-tabla"><table><thead><tr>' + (encabezados || ['Detalle', 'Valor']).map(function(t) { return '<th scope="col">' + escaparReporte(t) + '</th>'; }).join('') + '</tr></thead><tbody>' + filas.map(function(fila) { return '<tr>' + fila.map(function(valor, indice) { return '<' + (indice === 0 ? 'th scope="row"' : 'td') + '>' + escaparReporte(textoColeccionInv(valor)) + '</' + (indice === 0 ? 'th' : 'td') + '>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' : '<p class="reporte-vacio">Sin datos registrados.</p>') + '</section>';
+  }
+
+  function distribucionEstadistica(titulo, grupos) {
+    var maximo = Math.max.apply(null, grupos.map(function(g) { return g.valor; }).concat([1]));
+    return '<section class="carrera-estadistica-bloque"><h4>' + escaparReporte(titulo) + '</h4>' + (grupos.length ? '<ul class="reporte-barras">' + grupos.map(function(g) { return '<li><span>' + escaparReporte(g.nombre) + '</span><div class="reporte-barra" aria-hidden="true"><span style="width:' + 100 * g.valor / maximo + '%"></span></div><strong>' + formatoEstadistica(g.valor, 'entero') + '</strong></li>'; }).join('') + '</ul>' : '<p class="reporte-vacio">Sin datos registrados.</p>') + '</section>';
+  }
+
+  function panelEstadisticaCarrera(titulo, contenido, nota) {
+    return '<section class="carrera-estadistica-panel" aria-label="' + escaparReporte(titulo) + '">' + '<div class="carrera-estadisticas-grid" tabindex="0" role="region" aria-label="' + escaparReporte(titulo) + ': desplazamiento horizontal">' + contenido + '</div></section>';
+  }
+
+  function rankingEstadistica(titulo, lista, campo, formato) {
+    var orden = lista.slice().sort(function(a, b) { return (b[campo] == null ? -1 : b[campo]) - (a[campo] == null ? -1 : a[campo]) || a.nombre.localeCompare(b.nombre, 'es'); });
+    return tablaEstadistica(titulo, orden.map(function(item) { return [item.nombre, formatoEstadistica(item[campo], formato)]; }), ['Carrera / Línea', 'Resultado']);
+  }
+
+  var gruposEstadisticasCarrera = {};
+  var gruposComparativasCarrera = {};
+
+  function renderizarEstadisticasCarrera(lista, datos) {
+    var est = calcularEstadisticasCarrera(lista, datos);
+    est.comparativas = calcularComparativasCarrera();
+    estadisticasCarreraActual = est;
+    var k = est.kpis;
+    var metricas = [['Investigadores activos', formatoEstadistica(k.investigadoresActivos, 'entero')], ['Investigadores RENACYT', k.investigadoresRenacyt + ' · ' + formatoEstadistica(k.porcentajeRenacyt, 'porcentaje')], ['Publicaciones totales', k.publicaciones], ['Publicaciones Q1–Q2', k.publicacionesQ12], ['Proyectos activos', k.proyectosActivos], ['Financiamiento total', formatoEstadistica(k.financiamiento, 'moneda')], ['Eventos realizados', k.eventosRealizados], ['Productividad promedio', formatoEstadistica(k.productividad)]];
+    gruposEstadisticasCarrera.principales = metricasInvestigador(metricas);
+    var p = est.produccion, i = est.investigadores, r = est.proyectos, e = est.eventos, c = est.comparativas;
+    gruposEstadisticasCarrera.produccion = panelEstadisticaCarrera('Producción científica', distribucionEstadistica('Publicaciones por ciclo / semestre', p.porCiclo) + distribucionEstadistica('Evolución anual', p.porAnio) + distribucionEstadistica('Tipo de publicación', p.porTipo) + distribucionEstadistica('Indexación', p.porIndexacion) + distribucionEstadistica('Cuartiles', p.porCuartil) + distribucionEstadistica('Estado de publicación', p.porEstado) + tablaEstadistica('Calidad de los medios', [['H-index promedio', formatoEstadistica(p.hIndex)], ['H-index de revistas', formatoEstadistica(p.hIndexJournals)], ['H-index de conferencias', formatoEstadistica(p.hIndexConferencias)], ['Q1–Q2 / cuartil conocido', formatoEstadistica(p.porcentajeQ12, 'porcentaje')], ['Con cuartil registrado', p.conCuartil], ['Sin cuartil registrado', p.sinCuartil]]));
+    gruposEstadisticasCarrera.investigadores = panelEstadisticaCarrera('Investigadores', distribucionEstadistica('Investigadores por carrera', i.porCarrera) + distribucionEstadistica('Nivel RENACYT', i.porRenacyt) + distribucionEstadistica('Categoría docente', i.porCategoria) + distribucionEstadistica('Tipo de dedicación', i.porDedicacion) + tablaEstadistica('Participación en el periodo', [['Con publicaciones', i.conPublicaciones], ['Sin publicaciones', i.sinPublicaciones], ['Participan en proyectos', i.conProyectos], ['Contribuciones por investigador', formatoEstadistica(i.contribucionesPromedio)]]) + distribucionEstadistica('Investigadores con actividad por ciclo', i.actividadPorCiclo), 'Activos corresponde al total de investigadores asociados. La evolución histórica muestra actividad registrada; no hay fechas de alta y baja para reconstruir el estado administrativo.');
+    gruposEstadisticasCarrera.proyectos = panelEstadisticaCarrera('Proyectos', distribucionEstadistica('Internos y externos', r.porTipo) + distribucionEstadistica('Estado del proyecto', r.porEstado) + distribucionEstadistica('Iniciados por ciclo', r.iniciadosPorCiclo) + distribucionEstadistica('Finalizados por ciclo', r.finalizadosPorCiclo) + tablaEstadistica('Financiamiento y ejecución', [['Presupuesto total', formatoEstadistica(r.presupuesto.valor, 'moneda')], ['Presupuestos registrados', r.presupuesto.registrados + ' de ' + r.presupuesto.total], ['Presupuesto ejecutado', formatoEstadistica(r.ejecutado.valor, 'moneda')], ['Porcentaje de ejecución', formatoEstadistica(r.porcentajeEjecucion, 'porcentaje')], ['Registros con ambos importes', r.registrosEjecucion], ['Presupuesto externo registrado', formatoEstadistica(r.externo.valor, 'moneda')], ['Tasa de finalización', formatoEstadistica(r.tasaFinalizacion, 'porcentaje')], ['Finalizados sin fecha de fin', r.finalizadosSinFecha]]) + distribucionEstadistica('Área temática', r.porArea) + distribucionEstadistica('Entidad financiadora', r.porFinanciador) + rankingEstadistica('Presupuesto por carrera', c.carreras, 'financiamiento', 'moneda') + rankingEstadistica('Presupuesto por línea', c.lineas, 'financiamiento', 'moneda'), 'Los importes usan solo valores registrados; la ejecución compara proyectos con ambos importes. El inicio utiliza la fecha de inicio o la fecha registrada. Los cierres sin fecha no se asignan a un ciclo. El presupuesto externo no acredita un desembolso.');
+    gruposEstadisticasCarrera.eventos = panelEstadisticaCarrera('Eventos académicos', tablaEstadistica('Participaciones', [['Total de participaciones', e.participaciones]]) + distribucionEstadistica('Eventos realizados por ciclo', e.realizadosPorCiclo) + distribucionEstadistica('Tipo de evento', e.porTipo) + distribucionEstadistica('Rol de participación', e.porRol) + distribucionEstadistica('Modalidad', e.porModalidad) + distribucionEstadistica('Nacional / Internacional', e.porAmbito), 'Las participaciones cuentan los investigadores asociados a cada evento. El ámbito nacional o internacional requiere un valor explícito; no se deduce del lugar.');
+    var evolucion = [];
+    c.carreras.forEach(function(carrera) { carrera.ciclos.forEach(function(ciclo) { evolucion.push([carrera.nombre, ciclo.ciclo, ciclo.publicaciones, ciclo.proyectos, ciclo.eventos]); }); });
+    gruposComparativasCarrera = {
+      publicaciones: rankingEstadistica('Carreras por publicaciones', c.carreras, 'publicaciones', 'entero'),
+      q12: rankingEstadistica('Líneas por publicaciones Q1–Q2', c.lineas, 'q12', 'entero'),
+      finalizados: rankingEstadistica('Carreras por proyectos finalizados', c.carreras, 'proyectosFinalizados', 'entero'),
+      financiamiento: rankingEstadistica('Líneas por financiamiento', c.lineas, 'financiamiento', 'moneda'),
+      productividad: rankingEstadistica('Productividad por carrera', c.carreras, 'productividad'),
+      renacyt: rankingEstadistica('Investigadores RENACYT por carrera', c.carreras, 'porcentajeRenacyt', 'porcentaje'),
+      evolucion: tablaEstadistica('Producción comparativa por ciclo', evolucion, ['Carrera', 'Ciclo', 'Publicaciones', 'Proyectos', 'Eventos'])
+    };
+    mostrarGrupoEstadisticasCarrera();
+    mostrarComparativaCarrera();
+  }
+
+  function mostrarGrupoEstadisticasCarrera() {
+    var grupo = valorReporte('carrera-grupo-estadisticas') || 'principales';
+    var principales = grupo === 'principales';
+    document.getElementById('carrera-resumen').classList.toggle('hidden', !principales);
+    document.getElementById('carrera-estadisticas-detalle').classList.toggle('hidden', principales);
+    document.getElementById('carrera-resumen').innerHTML = gruposEstadisticasCarrera.principales || '';
+    document.getElementById('carrera-estadisticas-detalle').innerHTML = principales ? '' : gruposEstadisticasCarrera[grupo] || '<p class="reporte-vacio">Sin estadísticas disponibles.</p>';
+  }
+
+  function mostrarComparativaCarrera() {
+    var grupo = valorReporte('carrera-grupo-comparativas') || 'publicaciones';
+    document.getElementById('carrera-comparativas-contenido').innerHTML = gruposComparativasCarrera[grupo] || '<p class="reporte-vacio">Sin comparativas disponibles.</p>';
+  }
+
+  // FIN: Presentación de estadísticas y rankings
+
+  // INICIO: Actualización del reporte y perfiles por carrera
+
+  function actualizarReporteCarrera() {
+    var lista = investigadoresCarreraReporte(true);
+    var ciclo = valorReporte('carrera-periodo') === 'todos' ? '' : cicloReporte();
+    var datos = coleccionReporte(lista, valorReporte('carrera-linea'), ciclo, 'carrera');
+    prepararFiltrosRegistrosInv(datos, 'carrera');
+    ['publicaciones', 'proyectos', 'eventos'].forEach(function(tipo, indice) {
+      datos[tipo] = filtrarRegistrosInv(datos[tipo], ['pub', 'pro', 'eve'][indice], 'carrera');
+    });
+    renderizarEstadisticasCarrera(lista, datos);
+    renderizarProduccionReporte('carrera', datos);
+    datosGraficosCarrera = datos;
+    sincronizarFiltrosGraficosCarrera();
+    renderizarGraficosCarrera();
+    if (document.getElementById('carrera-dialogo-grafico').open) renderizarFiltroGraficoCarrera();
+    renderizarInvestigadoresCarrera(lista);
+  }
+
+  function abrirFiltrosCarrera(seccion) {
+    document.getElementById('carrera-dialogo-' + seccion).showModal();
+  }
+
+  function renderizarInvestigadoresCarrera(lista) {
+    textoReporte('carrera-contador-investigadores', lista.length + (lista.length === 1 ? ' investigador' : ' investigadores'));
+    document.getElementById('carrera-lista-investigadores').innerHTML = lista.length ? lista.map(function(inv, indice) {
+      return '<article class="reporte-detalle"><button type="button" class="reporte-abrir-detalle" aria-haspopup="dialog" aria-controls="reporte-dialogo-detalle" onclick="abrirInvestigadorCarrera(' + indice + ')"><span><strong>' + escaparReporte(inv.nombre) + '</strong><small>' + escaparReporte(inv.carrera) + '</small><small>' + escaparReporte(inv.renacytNivel || 'Sin clasificación RENACYT') + '</small></span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></article>';
+    }).join('') : '<p class="reporte-vacio">No hay investigadores para la carrera y línea seleccionadas.</p>';
+  }
+
+  function perfilInvestigadorCarrera(inv) {
+    var dias = Array.isArray(inv.dias) ? inv.dias : [];
+    var disponibilidad = ['L', 'Ma', 'Mi', 'J', 'V'].map(function(dia) {
+      var activo = dias.indexOf(dia) !== -1;
+      return '<span class="' + (activo ? 'dia-activo' : '') + '">' + dia + '<span class="sr-only">' + (activo ? ': con dedicación' : ': sin dedicación') + '</span></span>';
+    }).join('');
+    var campos = [['DNI', inv.dni], ['Correo', inv.correo], ['Carrera', inv.carrera], ['Categoría', inv.categoria], ['Código RENACYT', inv.renacytCodigo], ['Grupo RENACYT', inv.renacytGrupo]];
+    var nivel = valorRenacytReporte(inv.renacytNivel);
+    var lineas = lineasInvestigador(inv).map(function(linea) { return '<p>' + escaparReporte(linea) + '</p>'; }).join('');
+    var url = urlReporte(inv.ctivitaeUrl) || 'https://ctivitae.concytec.gob.pe';
+    return '<div class="investigador-detalle-grid"><section class="glass-card investigador-disponibilidad"><h3>Dedicación</h3><div class="reporte-dias" aria-label="Disponibilidad semanal">' + (dias.length ? disponibilidad : '<p>Sin días registrados</p>') + '</div><dl class="investigador-datos-laterales"><div><dt>Dedicación actual</dt><dd>' + valorDetalleColeccionInv(inv.dedicacion) + '</dd></div><div><dt>Categoría</dt><dd>' + valorDetalleColeccionInv(inv.categoria) + '</dd></div></dl></section>' +
+      '<section class="glass-card investigador-identidad"><h3>Ficha del Investigador</h3><p class="investigador-nombre">' + escaparReporte(inv.nombre) + '</p><div class="investigador-nivel empiria-nivel" data-nivel="' + (nivel || 'sin-clasificacion') + '">RENACYT — ' + escaparReporte(inv.renacytNivel || 'Sin clasificación') + '</div><dl class="inv-detalles-grid">' + campos.map(function(par) { return '<div><dt>' + par[0] + '</dt><dd>' + valorDetalleColeccionInv(par[1]) + '</dd></div>'; }).join('') + '</dl><div class="inv-perfil-lineas"><span class="reporte-etiqueta">Líneas de investigación</span><div class="investigador-lineas empiria-lineas">' + lineas + '</div></div>' + (url ? '<a class="investigador-enlace-cti" href="' + escaparReporte(url) + '" target="_blank" rel="noopener noreferrer">' + (urlReporte(inv.ctivitaeUrl) ? 'Ver perfil CTI Vitae ↗' : 'Consultar CTI Vitae ↗') + '</a>' : '') + '</section></div>';
+  }
+
+  function abrirInvestigadorCarrera(indice) {
+    var inv = investigadoresCarreraReporte(true)[indice];
+    if (!inv) return;
+    dialogoColeccionInv = null;
+    textoReporte('reporte-detalle-titulo', inv.nombre);
+    document.getElementById('reporte-detalle-contenido').innerHTML = perfilInvestigadorCarrera(inv);
+    document.getElementById('reporte-dialogo-detalle').showModal();
+  }
+
+  // FA-018 de CU-005: un ciclo cerrado se consulta como histórico de solo lectura.
+  function actualizarAvisoReportesCerrado() {
+    document.getElementById('aviso-reportes-cerrado').classList.toggle('hidden', cicloEstadoActual !== 'CERRADO');
+  }
+
+  function actualizarReportesPorCiclo() {
+    actualizarAvisoReportesCerrado();
+    if (!datosReportesCache) return;
+    document.getElementById('inv-ciclo').value = cicloReporte();
+    actualizarReporteInvestigador();
+    actualizarReporteCarrera();
+  }
+
+  // FIN: Actualización del reporte y perfiles por carrera
+
+  // INICIO: Utilidades de presentación y ordenación de reportes
+
+  function renderizarResumenReporte(id, numero, datos) {
+    var metricas = [['Investigadores', numero], ['Publicaciones', datos.publicaciones.length], ['Proyectos', datos.proyectos.length], ['Eventos', datos.eventos.length]];
+    document.getElementById(id).innerHTML = metricasInvestigador(metricas);
+  }
+
+  function urlReporte(valor) {
+    return typeof valor === 'string' && /^https?:\/\/[^\s]+$/i.test(valor) ? valor : '';
+  }
+
+  function ordenarPublicacionesReporte(lista, orden) {
+    return lista.slice().sort(function(a, b) {
+      var diferencia = orden === 'fecha' ? (Date.parse(b.fecha) || 0) - (Date.parse(a.fecha) || 0) : (Number(b.hIndex) || 0) - (Number(a.hIndex) || 0);
+      return diferencia || String(a.titulo).localeCompare(String(b.titulo), 'es');
+    });
+  }
+
+  function fechaReporte(fecha) {
+    if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return 'Sin fecha';
+    return fecha.split('-').reverse().join('/');
+  }
+
+  function tablaDetalleReporte(item, tipo) {
+    var filas = [
+      ['Descripción', item.descripcion || 'Sin descripción registrada.'],
+      ['Investigador(es)', item.autores.join(', ')], ['Fecha', fechaReporte(item.fecha)],
+      ['Ciclo', item.ciclo], ['Línea', item.linea], ['Estado', item.estado],
+      ['Tipo', item.tipo], [tipo === 'proyectos' ? 'Financiador' : 'Participación', tipo === 'proyectos' ? item.financiador : item.rol],
+      ['Lugar', item.lugar], ['Tipo de proyecto', item.tipoProyecto], ['Rol', item.rol],
+      ['Modalidad', item.modalidad], ['Área temática', item.area],
+      ['Presupuesto (PEN)', item.presupuesto], ['Ejecutado (PEN)', item.ejecutado], ['Avance (%)', item.avance]
+    ];
+    var evidencia = urlReporte(item.urlEvidencia);
+    return '<div class="reporte-tabla reporte-tabla-detalle"><table><caption class="sr-only">Información del ' + (tipo === 'proyectos' ? 'proyecto' : 'evento') + '</caption><thead><tr><th scope="col">Campo</th><th scope="col">Información</th></tr></thead><tbody>' + filas.filter(function(par) {
+      return par[1] != null && par[1] !== '';
+    }).map(function(par) {
+      return '<tr><th scope="row">' + escaparReporte(par[0]) + '</th><td>' + escaparReporte(par[1]) + '</td></tr>';
+    }).join('') + '<tr><th scope="row">Evidencia</th><td>' + (evidencia ? '<a href="' + escaparReporte(evidencia) + '" target="_blank" rel="noopener noreferrer">Ver evidencia ↗</a>' : 'Sin evidencia adjunta') + '</td></tr></tbody></table></div>';
+  }
+
+  function valorCeldaOrdenReporte(celda) {
+    // Usa el dato principal, sin mezclar autores, ciclo u otros metadatos.
+    var copia = celda.cloneNode(true);
+    copia.querySelectorAll('small, .reporte-minibarra, .tabla-orden-indicador').forEach(function(el) { el.remove(); });
+    var texto = copia.textContent.trim();
+    var fecha = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (fecha) return { tipo: 0, valor: Number(fecha[3] + fecha[2] + fecha[1]) };
+    if (/^-?\d+(?:[.,]\d+)?$/.test(texto)) return { tipo: 0, valor: Number(texto.replace(',', '.')) };
+    return { tipo: texto === '—' || texto === '' ? 2 : 1, valor: texto };
+  }
+
+  function ordenarTablaReporte(tabla, columna, direccion) {
+    var cuerpo = tabla.tBodies[0];
+    if (!cuerpo) return;
+    var filas = Array.prototype.slice.call(cuerpo.rows);
+    if (filas.some(function(fila) { return !fila.cells[columna] || fila.cells[0].colSpan > 1; })) return;
+    var comparador = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
+    filas.sort(function(a, b) {
+      var primero = valorCeldaOrdenReporte(a.cells[columna]);
+      var segundo = valorCeldaOrdenReporte(b.cells[columna]);
+      var diferencia = primero.tipo !== segundo.tipo ? primero.tipo - segundo.tipo :
+        primero.tipo === 0 ? primero.valor - segundo.valor : comparador.compare(primero.valor, segundo.valor);
+      return direccion === 'ascending' ? diferencia : -diferencia;
+    });
+    filas.forEach(function(fila) { cuerpo.appendChild(fila); });
+    tabla.dataset.ordenColumna = String(columna);
+    tabla.dataset.ordenDireccion = direccion;
+    Array.prototype.forEach.call(tabla.tHead.rows[0].cells, function(cabecera, indice) {
+      cabecera.setAttribute('aria-sort', indice === columna ? direccion : 'none');
+      var indicador = cabecera.querySelector('.tabla-orden-indicador');
+      if (indicador) indicador.textContent = indice === columna ? (direccion === 'ascending' ? '↑' : '↓') : '↕';
+    });
+  }
+
+  function habilitarOrdenTablasReportes(raiz) {
+    if (!raiz) return;
+    raiz.querySelectorAll('table').forEach(function(tabla) {
+      if (tabla.dataset.gestion === 'coleccion' || !tabla.tHead || !tabla.tHead.rows.length) return;
+      Array.prototype.forEach.call(tabla.tHead.rows[0].cells, function(cabecera, columna) {
+        var boton = cabecera.querySelector('.tabla-orden-boton');
+        if (!boton) {
+          var etiqueta = cabecera.textContent.trim();
+          boton = document.createElement('button');
+          boton.type = 'button';
+          boton.className = 'tabla-orden-boton';
+          boton.dataset.etiqueta = etiqueta;
+          boton.setAttribute('aria-label', 'Ordenar por ' + etiqueta + ', ascendente o descendente');
+          boton.appendChild(document.createTextNode(etiqueta));
+          var indicador = document.createElement('span');
+          indicador.className = 'tabla-orden-indicador';
+          indicador.setAttribute('aria-hidden', 'true');
+          indicador.textContent = '↕';
+          boton.appendChild(indicador);
+          cabecera.textContent = '';
+          cabecera.setAttribute('aria-sort', 'none');
+          cabecera.appendChild(boton);
+        }
+        // También enlaza cabeceras copiadas al diálogo mediante innerHTML.
+        boton.onclick = function() {
+          var direccion = tabla.dataset.ordenColumna === String(columna) && tabla.dataset.ordenDireccion === 'ascending' ? 'descending' : 'ascending';
+          ordenarTablaReporte(tabla, columna, direccion);
+        };
+      });
+      if (tabla.dataset.ordenColumna != null) ordenarTablaReporte(tabla, Number(tabla.dataset.ordenColumna), tabla.dataset.ordenDireccion);
+    });
+  }
+
+  // Vista de colecciones: el estado de presentación no modifica los registros.
+  var vistasColeccionInv = {};
+  var dialogoColeccionInv = null;
+  // FIN: Utilidades de presentación y ordenación de reportes
+
+  // INICIO: Columnas y datos de las colecciones
+
+  var columnasColeccionInv = {
+    publicaciones: [['titulo', 'Título'], ['tipo', 'Tipo'], ['evento', 'Revista / Evento'], ['indexacion', 'Indexación'], ['calidad', 'Calidad'], ['hIndex', 'H-index'], ['fecha', 'Fecha'], ['estado', 'Estado']],
+    proyectos: [['codigo', 'Código'], ['titulo', 'Título'], ['tipoProyecto', 'Tipo'], ['tipo', 'Financiamiento'], ['rol', 'Rol'], ['estado', 'Estado'], ['periodo', 'Inicio / Fin'], ['presupuesto', 'Presupuesto']],
+    eventos: [['titulo', 'Evento'], ['tipo', 'Tipo'], ['rol', 'Rol'], ['modalidad', 'Modalidad'], ['fecha', 'Fecha'], ['ubicacion', 'Ubicación'], ['estado', 'Estado']]
+  };
+
+  var camposTablaColeccionInv = {
+    publicaciones: [['autores', 'Autores'], ['linea', 'Línea de investigación'], ['jif', 'JIF'], ['jci', 'JCI'], ['pais', 'País'], ['ciudad', 'Ciudad'], ['urlPublicacion', 'Enlace de publicación']],
+    proyectos: [['objetivos', 'Objetivos'], ['linea', 'Línea de investigación'], ['area', 'Área temática'], ['financiador', 'Entidad financiadora'], ['recursosHumanos', 'Recursos humanos'], ['ejecutado', 'Presupuesto ejecutado (PEN)'], ['resultados', 'Resultados'], ['documentosControl', 'Documentos de control'], ['actividades', 'Actividades']],
+    eventos: [['urlEvento', 'Enlace del evento'], ['imagenes', 'Imágenes'], ['documentacion', 'Documentación de respaldo']]
+  };
+
+  function columnasVisiblesColeccionInv(tipo, lista) {
+    var columnas = columnasColeccionInv[tipoBaseColeccionInv(tipo)].concat(camposTablaColeccionInv[tipoBaseColeccionInv(tipo)]);
+    var etiquetas = { descripcion: 'Descripción', ciclo: 'Ciclo', autores: 'Investigadores', id: 'ID', lugar: 'Lugar', fecha: 'Fecha registrada', avance: 'Avance (%)', fechaInicio: 'Fecha de inicio', fechaFin: 'Fecha de fin' };
+    estadoColeccionInv(tipo).datos.concat(lista || []).forEach(function(item) {
+      Object.keys(item).forEach(function(clave) {
+        if (clave === 'urlEvidencia') return;
+        if ((clave === 'JIF' || clave === 'JCI') && columnas.some(function(par) { return par[0] === clave.toLowerCase(); })) return;
+        if (!columnas.some(function(par) { return par[0] === clave; })) columnas.push([clave, etiquetas[clave] || clave]);
+      });
+    });
+    return columnas;
+  }
+
+  function tipoBaseColeccionInv(tipo) { return tipo.replace(/^carrera-/, ''); }
+
+  function idElementoColeccionInv(tipo, parte) {
+    var carrera = tipo.indexOf('carrera-') === 0;
+    return (carrera ? 'carrera-' : 'inv-') + (parte ? parte + '-' : '') + tipoBaseColeccionInv(tipo);
+  }
+
+  function idFiltroRegistroInv(pref, clave, contexto) {
+    if (contexto === 'carrera') {
+      var equivalencias = { 'pub-tipo': 'carrera-tipo-publicacion', 'pub-orden': 'carrera-orden', 'pro-financiamiento': 'carrera-tipo-proyecto', 'eve-estado': 'carrera-estado-evento' };
+      return equivalencias[pref + '-' + clave] || 'carrera-' + pref + '-' + clave;
+    }
+    return 'inv-' + pref + '-' + clave;
+  }
+
+  function estadoColeccionInv(tipo) {
+    if (!vistasColeccionInv[tipo]) vistasColeccionInv[tipo] = { datos: [], busqueda: '', pagina: 1, tamano: 10, columna: '', direccion: 'ascending', filtrosCabecera: {} };
+    return vistasColeccionInv[tipo];
+  }
+
+  function datoColeccionInv(item, clave) {
+    if (clave === 'codigo') return item.codigo || item.numeroProyecto || item.id || '';
+    if (clave === 'calidad') return item.cuartil || item.rankingConferencia || item.ranking || '';
+    if (clave === 'periodo') return [item.fechaInicio || item.inicio || item.fecha, item.fechaFin || item.fin].filter(Boolean).join(' / ');
+    if (clave === 'ubicacion') return [item.pais, item.ciudad].filter(Boolean).join(', ') || item.lugar || '';
+    if (clave === 'jif') return item.jif == null ? item.JIF : item.jif;
+    if (clave === 'jci') return item.jci == null ? item.JCI : item.jci;
+    return item[clave];
+  }
+
+  function textoColeccionInv(valor) {
+    if (valor == null || valor === '') return 'No registrado';
+    if (Array.isArray(valor)) return valor.map(textoColeccionInv).join(', ');
+    if (typeof valor === 'object') return Object.keys(valor).map(function(clave) { return clave + ': ' + textoColeccionInv(valor[clave]); }).join('; ');
+    return String(valor);
+  }
+
+  function normalizarBusquedaInv(valor) {
+    return String(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  function registrosColeccionInv(tipo) {
+    var estado = estadoColeccionInv(tipo);
+    var busqueda = normalizarBusquedaInv(estado.busqueda.trim());
+    var lista = estado.datos.filter(function(item) {
+      return !busqueda || normalizarBusquedaInv([item.titulo, item.nombre, item.codigo, item.numeroProyecto, item.id, (item.autores || []).join(' ')].join(' ')).indexOf(busqueda) !== -1;
+    });
+    lista = lista.filter(function(item) {
+      return Object.keys(estado.filtrosCabecera).every(function(clave) {
+        var seleccion = estado.filtrosCabecera[clave];
+        return !seleccion.length || seleccion.indexOf(textoColeccionInv(datoColeccionInv(item, clave))) !== -1;
+      });
+    });
+    if (!estado.columna) return lista;
+    var comparador = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
+    return lista.slice().sort(function(a, b) {
+      var primero = datoColeccionInv(a, estado.columna);
+      var segundo = datoColeccionInv(b, estado.columna);
+      // Los ausentes se mantienen al final en ambos sentidos.
+      if (primero == null || primero === '') return segundo == null || segundo === '' ? 0 : 1;
+      if (segundo == null || segundo === '') return -1;
+      var diferencia = typeof primero === 'number' && typeof segundo === 'number' ? primero - segundo : comparador.compare(textoColeccionInv(primero), textoColeccionInv(segundo));
+      return estado.direccion === 'ascending' ? diferencia : -diferencia;
+    });
+  }
+
+  function etiquetaEstadoInv(valor) {
+    var texto = normalizarBusquedaInv(valor || 'No registrado');
+    var tono = /cancelad|rechazad/.test(texto) ? 'error' : /finalizad|realizad|publicad|aceptad|aprobad/.test(texto) ? 'exito' : /desarrollo|ejecucion|revision/.test(texto) ? 'progreso' : /preparacion|programad|pendiente/.test(texto) ? 'aviso' : 'neutro';
+    return '<span class="inv-estado inv-estado-' + tono + '">' + escaparReporte(valor || 'No registrado') + '</span>';
+  }
+
+  function valorDetalleColeccionInv(valor) {
+    if (Array.isArray(valor)) return valor.length ? '<ul class="inv-enlaces-detalle">' + valor.map(function(item) { return '<li>' + valorDetalleColeccionInv(item) + '</li>'; }).join('') + '</ul>' : 'No registrado';
+    if (valor && typeof valor === 'object') return '<dl class="inv-datos-anidados">' + Object.keys(valor).map(function(clave) { return '<div><dt>' + escaparReporte(clave) + '</dt><dd>' + valorDetalleColeccionInv(valor[clave]) + '</dd></div>'; }).join('') + '</dl>';
+    var enlace = urlReporte(valor);
+    return enlace ? '<a href="' + escaparReporte(enlace) + '" target="_blank" rel="noopener noreferrer">' + escaparReporte(valor) + ' ↗</a>' : escaparReporte(textoColeccionInv(valor));
+  }
+
+  function detalleColeccionInv(item, tipo) {
+    var campos = {
+      publicaciones: [['autores', 'Autores'], ['linea', 'Línea de investigación'], ['jif', 'JIF'], ['jci', 'JCI'], ['pais', 'País'], ['ciudad', 'Ciudad'], ['urlPublicacion', 'Enlace de publicación'], ['urlEvidencia', 'Evidencias']],
+      proyectos: [['objetivos', 'Objetivos'], ['linea', 'Línea de investigación'], ['area', 'Área temática'], ['financiador', 'Entidad financiadora'], ['recursosHumanos', 'Recursos humanos'], ['ejecutado', 'Presupuesto ejecutado (PEN)'], ['resultados', 'Resultados'], ['documentosControl', 'Documentos de control'], ['actividades', 'Actividades'], ['urlEvidencia', 'Evidencias']],
+      eventos: [['urlEvento', 'Enlace del evento'], ['imagenes', 'Imágenes'], ['documentacion', 'Documentación de respaldo'], ['urlEvidencia', 'Evidencias']]
+    }[tipo].slice();
+    var principales = columnasColeccionInv[tipoBaseColeccionInv(tipo)].map(function(par) { return par[0]; });
+    Object.keys(item).forEach(function(clave) {
+      if (principales.indexOf(clave) === -1 && !campos.some(function(par) { return par[0] === clave; })) campos.push([clave, { descripcion: 'Descripción', ciclo: 'Ciclo', autores: 'Investigadores', id: 'ID', lugar: 'Lugar', fecha: 'Fecha registrada', avance: 'Avance (%)', fechaInicio: 'Fecha de inicio', fechaFin: 'Fecha de fin', JIF: 'JIF', JCI: 'JCI' }[clave] || clave]);
+    });
+    return '<dl class="inv-detalles-grid">' + campos.map(function(par) {
+      var valor = item[par[0]];
+      if (par[0] === 'jif' && valor == null) valor = item.JIF;
+      if (par[0] === 'jci' && valor == null) valor = item.JCI;
+      return '<div><dt>' + escaparReporte(par[1]) + '</dt><dd>' + valorDetalleColeccionInv(valor) + '</dd></div>';
+    }).join('') + '</dl>';
+  }
+
+  function celdaColeccionInv(item, clave) {
+    var valor = datoColeccionInv(item, clave);
+    if (clave === 'estado') return etiquetaEstadoInv(valor);
+    if (clave === 'fecha') return valor ? escaparReporte(fechaReporte(valor)) : 'No registrado';
+    if (clave === 'periodo') return escaparReporte([item.fechaInicio || item.inicio || item.fecha, item.fechaFin || item.fin].map(function(fecha) { return fecha ? fechaReporte(fecha) : 'No registrado'; }).join(' / '));
+    if ((clave === 'presupuesto' || clave === 'ejecutado') && typeof valor === 'number') return escaparReporte(new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(valor));
+    if (valor && typeof valor === 'object' || urlReporte(valor)) return valorDetalleColeccionInv(valor);
+    return escaparReporte(textoColeccionInv(valor));
+  }
+
+  var filtroCabeceraInvActual = null;
+
+  function accionCabeceraColeccionInv(clave) {
+    if (['tipo', 'tipoProyecto', 'indexacion', 'calidad', 'estado', 'rol', 'modalidad', 'linea', 'area', 'financiador', 'pais', 'ciudad', 'ciclo', 'ubicacion'].indexOf(clave) !== -1) return 'filtro';
+    if (['titulo', 'codigo', 'id', 'evento', 'nombre', 'fecha', 'fechaInicio', 'fechaFin', 'periodo', 'hIndex', 'jif', 'jci', 'presupuesto', 'ejecutado', 'avance'].indexOf(clave) !== -1) return 'orden';
+    return 'lectura';
+  }
+
+  function opcionesFiltroCabeceraInv(tipo, columna) {
+    var prefijo = { publicaciones: 'pub', proyectos: 'pro', eventos: 'eve' }[tipoBaseColeccionInv(tipo)];
+    var clave = { publicaciones: { calidad: 'cuartil' }, proyectos: { tipo: 'financiamiento' }, eventos: {} }[tipoBaseColeccionInv(tipo)][columna] || columna;
+    var catalogo = (catalogosRegistrosInv[prefijo + '-' + clave] || []).slice();
+    if (tipoBaseColeccionInv(tipo) === 'publicaciones' && columna === 'calidad') catalogo = catalogo.concat(catalogosRegistrosInv['pub-cuartil']);
+    var valores = registrosCatalogoInv(tipoBaseColeccionInv(tipo)).map(function(item) { return textoColeccionInv(datoColeccionInv(item, columna)); });
+    // Conserva valores locales y selecciones activas aunque no haya coincidencias.
+    valores = valores.concat(estadoColeccionInv(tipo).datos.map(function(item) { return textoColeccionInv(datoColeccionInv(item, columna)); }));
+    return unicosReporte(catalogo.concat(valores, estadoColeccionInv(tipo).filtrosCabecera[columna] || []));
+  }
+
+  // FIN: Columnas y datos de las colecciones
+
+  // INICIO: Filtros y tablas de las colecciones
+
+  function abrirFiltroCabeceraInv(tipo, columna) {
+    filtroCabeceraInvActual = { tipo: tipo, columna: columna };
+    var campos = columnasVisiblesColeccionInv(tipo, []);
+    var campo = campos.find(function(par) { return par[0] === columna; });
+    textoReporte('inv-columna-titulo', 'Filtrar por ' + (campo ? campo[1] : columna));
+    var opciones = opcionesFiltroCabeceraInv(tipo, columna);
+    var seleccion = estadoColeccionInv(tipo).filtrosCabecera[columna] || [];
+    document.getElementById('inv-columna-opciones').innerHTML = '<legend class="sr-only">Valores disponibles</legend>' + (opciones.length ? opciones.map(function(valor) {
+      return '<label><input type="checkbox" value="' + escaparReporte(valor) + '" onchange="aplicarFiltroCabeceraInv(this)"' + (seleccion.indexOf(valor) !== -1 ? ' checked' : '') + '><span>' + escaparReporte(valor) + '</span></label>';
+    }).join('') : '<p class="reporte-nota">No hay valores disponibles para esta columna.</p>');
+    document.getElementById('inv-dialogo-columna').showModal();
+  }
+
+  function aplicarFiltroCabeceraInv(control) {
+    if (!filtroCabeceraInvActual) return;
+    var tipo = filtroCabeceraInvActual.tipo;
+    var columna = filtroCabeceraInvActual.columna;
+    var estado = estadoColeccionInv(tipo);
+    var seleccion = (estado.filtrosCabecera[columna] || []).filter(function(valor) { return valor !== control.value; });
+    if (control.checked) seleccion.push(control.value);
+    estado.filtrosCabecera[columna] = seleccion;
+    estado.pagina = 1;
+    renderizarColeccionInv(tipo);
+  }
+
+  function limpiarFiltroCabeceraInv() {
+    if (!filtroCabeceraInvActual) return;
+    var tipo = filtroCabeceraInvActual.tipo;
+    estadoColeccionInv(tipo).filtrosCabecera[filtroCabeceraInvActual.columna] = [];
+    estadoColeccionInv(tipo).pagina = 1;
+    document.querySelectorAll('#inv-columna-opciones input').forEach(function(control) { control.checked = false; });
+    renderizarColeccionInv(tipo);
+  }
+
+  function tablaColeccionInv(tipo, lista, contexto, inicio, completa) {
+    var columnas = columnasVisiblesColeccionInv(tipo, lista);
+    var estado = estadoColeccionInv(tipo);
+    return '<table data-gestion="coleccion"><caption class="sr-only">' + escaparReporte(tipo) + '</caption><thead><tr>' + columnas.map(function(par) {
+      var accion = accionCabeceraColeccionInv(par[0]);
+      var activa = estado.columna === par[0];
+      var orden = activa ? estado.direccion : 'none';
+      var seleccion = estado.filtrosCabecera[par[0]] || [];
+      var cabecera = escaparReporte(par[1]);
+      if (!completa && accion !== 'lectura') {
+        var filtrar = accion === 'filtro';
+        var etiqueta = (filtrar ? 'Filtrar por ' : 'Ordenar por ') + par[1] + (seleccion.length ? ', ' + seleccion.length + ' valores seleccionados' : '');
+        cabecera = '<button type="button" class="tabla-orden-boton' + (seleccion.length ? ' inv-columna-filtrada' : '') + '" data-tipo="' + tipo + '" data-columna="' + escaparReporte(par[0]) + '" data-etiqueta="' + escaparReporte(par[1]) + '" aria-label="' + escaparReporte(etiqueta) + '"' + (filtrar ? ' aria-haspopup="dialog" aria-controls="inv-dialogo-columna"' : '') + ' onclick="' + (filtrar ? 'abrirFiltroCabeceraInv' : 'ordenarColeccionInv') + '(this.dataset.tipo,this.dataset.columna)">' + cabecera + (filtrar ? '<i class="fa-solid fa-filter" aria-hidden="true"></i>' : '<span class="tabla-orden-indicador" aria-hidden="true">' + (activa ? orden === 'ascending' ? '↑' : '↓' : '↕') + '</span>') + '</button>';
+      }
+      return '<th scope="col"' + (accion === 'orden' ? ' aria-sort="' + orden + '"' : '') + '>' + cabecera + '</th>';
+    }).join('') + '<th scope="col">Acciones</th></tr></thead><tbody' + (tipoBaseColeccionInv(tipo) === 'publicaciones' && contexto === 'principal' ? ' id="' + (tipo.indexOf('carrera-') === 0 ? 'carrera-publicaciones-body' : 'tabla-publicaciones-body') + '"' : '') + '>' + (lista.length ? lista.map(function(item) {
+      var enlace = urlReporte(item.urlEvidencia);
+      return '<tr>' + columnas.map(function(par) { return '<td>' + celdaColeccionInv(item, par[0]) + '</td>'; }).join('') + '<td class="inv-acciones-registro">' + (enlace ? '<a href="' + escaparReporte(enlace) + '" target="_blank" rel="noopener noreferrer">Ver evidencia ↗</a>' : '<small>Sin evidencia adjunta</small>') + '</td></tr>';
+    }).join('') : '<tr><td colspan="' + (columnas.length + 1) + '" class="reporte-vacio">No hay ' + tipoBaseColeccionInv(tipo) + ' que coincidan con la búsqueda y los filtros.</td></tr>') + '</tbody></table>';
+  }
+
+  function alternarDetalleColeccionInv(boton) {
+    var fila = document.getElementById(boton.getAttribute('aria-controls'));
+    var mostrar = boton.getAttribute('aria-expanded') !== 'true';
+    fila.classList.toggle('hidden', !mostrar);
+    boton.setAttribute('aria-expanded', String(mostrar));
+    boton.textContent = mostrar ? 'Ocultar detalles' : 'Ver detalles';
+  }
+
+  // FIN: Filtros y tablas de las colecciones
+
+  // INICIO: Búsqueda, paginación y exportación de colecciones
+
+  function prepararColeccionesInv(datos, contexto) {
+    Object.keys(columnasColeccionInv).forEach(function(base) {
+      var tipo = contexto === 'carrera' ? 'carrera-' + base : base;
+      var estado = estadoColeccionInv(tipo);
+      var ordenBase = valorReporte(idFiltroRegistroInv({ publicaciones: 'pub', proyectos: 'pro', eventos: 'eve' }[base], 'orden', contexto));
+      if (estado.ordenBase !== ordenBase) estado.columna = '';
+      estado.ordenBase = ordenBase;
+      estado.datos = datos[base];
+      estado.pagina = 1;
+      renderizarColeccionInv(tipo);
+    });
+  }
+
+  function paginaColeccionInv(tipo) {
+    var estado = estadoColeccionInv(tipo);
+    var lista = registrosColeccionInv(tipo);
+    var paginas = Math.max(1, Math.ceil(lista.length / estado.tamano));
+    estado.pagina = Math.max(1, Math.min(estado.pagina, paginas));
+    var inicio = (estado.pagina - 1) * estado.tamano;
+    return { lista: lista, visibles: lista.slice(inicio, inicio + estado.tamano), inicio: inicio, paginas: paginas };
+  }
+
+  function pieColeccionInv(tipo, pagina) {
+    var estado = estadoColeccionInv(tipo);
+    return '<div class="inv-paginacion"><button type="button" aria-label="Página anterior" title="Página anterior" onclick="cambiarPaginaColeccionInv(\'' + tipo + '\',-1)"' + (estado.pagina === 1 ? ' disabled' : '') + '><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button><span aria-label="Página ' + estado.pagina + ' de ' + pagina.paginas + '">' + estado.pagina + ' / ' + pagina.paginas + '</span><button type="button" aria-label="Página siguiente" title="Página siguiente" onclick="cambiarPaginaColeccionInv(\'' + tipo + '\',1)"' + (estado.pagina === pagina.paginas ? ' disabled' : '') + '><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></div>';
+  }
+
+  function renderizarColeccionInv(tipo) {
+    var pagina = paginaColeccionInv(tipo);
+    var contenedor = document.getElementById(idElementoColeccionInv(tipo));
+    if (tipoBaseColeccionInv(tipo) === 'publicaciones') contenedor.innerHTML = tablaColeccionInv(tipo, pagina.visibles, 'principal', pagina.inicio, false);
+    else contenedor.innerHTML = pagina.visibles.length ? pagina.visibles.map(function(item, indice) {
+      return '<article class="reporte-detalle"><button type="button" class="reporte-abrir-detalle" aria-haspopup="dialog" aria-controls="reporte-dialogo-detalle" onclick="abrirColeccionInv(\'' + tipo + '\',' + (pagina.inicio + indice) + ')"><span><strong>' + escaparReporte(item.titulo || item.nombre || 'Sin título') + '</strong><small>' + escaparReporte(textoColeccionInv(datoColeccionInv(item, tipoBaseColeccionInv(tipo) === 'proyectos' ? 'codigo' : 'tipo'))) + ' · ' + escaparReporte(fechaReporte(item.fecha)) + '</small>' + etiquetaEstadoInv(item.estado) + '</span><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button></article>';
+    }).join('') : '<p class="reporte-vacio">No hay ' + tipoBaseColeccionInv(tipo) + ' que coincidan con la búsqueda y los filtros.</p>';
+    var filtrosActivos = Object.keys(estadoColeccionInv(tipo).filtrosCabecera).filter(function(clave) { return estadoColeccionInv(tipo).filtrosCabecera[clave].length; }).length;
+    document.getElementById(idElementoColeccionInv(tipo, 'contador')).textContent = pagina.lista.length + (pagina.lista.length === 1 ? ' resultado encontrado' : ' resultados encontrados') + (filtrosActivos ? ' · ' + filtrosActivos + ' filtros de columna' : '');
+    document.getElementById(idElementoColeccionInv(tipo, 'pie')).innerHTML = pieColeccionInv(tipo, pagina);
+    if (dialogoColeccionInv && dialogoColeccionInv.tipo === tipo && document.getElementById('reporte-dialogo-detalle').open) renderizarDialogoColeccionInv();
+  }
+
+  function buscarColeccionInv(tipo, valor) {
+    var estado = estadoColeccionInv(tipo);
+    estado.busqueda = valor;
+    estado.pagina = 1;
+    renderizarColeccionInv(tipo);
+  }
+
+  function tamanoColeccionInv(tipo, valor) {
+    var estado = estadoColeccionInv(tipo);
+    estado.tamano = [10, 25, 50].indexOf(Number(valor)) === -1 ? 10 : Number(valor);
+    estado.pagina = 1;
+    renderizarColeccionInv(tipo);
+  }
+
+  function cambiarPaginaColeccionInv(tipo, cambio) {
+    estadoColeccionInv(tipo).pagina += cambio;
+    renderizarColeccionInv(tipo);
+  }
+
+  function ordenarColeccionInv(tipo, columna) {
+    var activo = document.activeElement;
+    var enDialogo = activo && document.getElementById('reporte-dialogo-detalle').contains(activo);
+    var estado = estadoColeccionInv(tipo);
+    estado.direccion = estado.columna === columna && estado.direccion === 'ascending' ? 'descending' : 'ascending';
+    estado.columna = columna;
+    estado.pagina = 1;
+    renderizarColeccionInv(tipo);
+    var raiz = document.getElementById(enDialogo ? 'reporte-detalle-contenido' : idElementoColeccionInv(tipo));
+    var boton = Array.prototype.find.call(raiz.querySelectorAll('[data-columna]'), function(el) { return el.dataset.columna === columna; });
+    if (boton) boton.focus({ preventScroll: true });
+  }
+
+  function abrirColeccionInv(tipo, indice) {
+    dialogoColeccionInv = { tipo: tipo, item: typeof indice === 'number' ? registrosColeccionInv(tipo)[indice] : null };
+    renderizarDialogoColeccionInv();
+    document.getElementById('reporte-dialogo-detalle').showModal();
+  }
+
+  function renderizarDialogoColeccionInv() {
+    var tipo = dialogoColeccionInv.tipo;
+    var pagina = paginaColeccionInv(tipo);
+    var item = dialogoColeccionInv.item;
+    textoReporte('reporte-detalle-titulo', item ? item.titulo : 'Tabla de ' + tipoBaseColeccionInv(tipo));
+    document.getElementById('reporte-detalle-contenido').innerHTML = '<div class="reporte-tabla" tabindex="0" role="region" aria-label="Tabla de ' + tipo + '">' + tablaColeccionInv(tipo, item ? [item] : pagina.visibles, 'dialogo', pagina.inicio, false) + '</div>' + (item ? '' : '<div class="inv-pie-coleccion">' + pieColeccionInv(tipo, pagina) + '</div>');
+  }
+
+  function csvColeccionInv(tipo) {
+    var lista = registrosColeccionInv(tipo);
+    var campos = columnasVisiblesColeccionInv(tipo, lista).map(function(par) { return par[0]; });
+    lista.forEach(function(item) { Object.keys(item).forEach(function(clave) { if (campos.indexOf(clave) === -1) campos.push(clave); }); });
+    function celda(valor) {
+      var texto = valor == null ? '' : typeof valor === 'object' ? JSON.stringify(valor) : String(valor);
+      if (/^[=+@\-\t\r]/.test(texto)) texto = "'" + texto;
+      return '"' + texto.replace(/"/g, '""') + '"';
+    }
+    var nombres = {};
+    columnasVisiblesColeccionInv(tipo, lista).forEach(function(par) { nombres[par[0]] = par[1]; });
+    return '\uFEFF' + [campos.map(function(clave) { return celda(nombres[clave] || clave); }).join(',')].concat(lista.map(function(item) { return campos.map(function(clave) { return celda(datoColeccionInv(item, clave)); }).join(','); })).join('\r\n');
+  }
+
+  function exportarColeccionInv(tipo) {
+    var url = URL.createObjectURL(new Blob([csvColeccionInv(tipo)], { type: 'text/csv;charset=utf-8' }));
+    var enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = 'empiria-' + tipo + '.csv';
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    document.getElementById(idElementoColeccionInv(tipo, 'contador')).textContent = registrosColeccionInv(tipo).length + ' registros exportados a CSV';
+  }
+
+  function renderizarProduccionReporte(prefijo, datos) {
+    prepararColeccionesInv(datos, prefijo === 'carrera' ? 'carrera' : 'investigador');
+  }
+
+  // FIN: Búsqueda, paginación y exportación de colecciones
+
+  // INICIO: Clasificación y filtros del reporte por investigador
+
+  function valorRenacytReporte(nivel) {
+    var niveles = { 'Distinguido': 8, 'Nivel I': 7, 'Nivel II': 6, 'Nivel III': 5, 'Nivel IV': 4, 'Nivel V': 3, 'Nivel VI': 2, 'Nivel VII': 1 };
+    return niveles[nivel] || 0;
+  }
+
+  var filtrosGeneralesInv = { carrera: 'carrera', linea: 'lineas', categoria: 'categoria', dedicacion: 'dedicacion', dia: 'dias', grupoRenacyt: 'renacytGrupo', nivel: 'renacytNivel', grupo: 'grupos', semillero: 'semilleros' };
+  var camposRegistrosInv = {
+    pub: { tipo: 'tipo', estado: 'estado', indexacion: 'indexacion', cuartil: 'cuartil', ranking: 'rankingConferencia', lugar: 'lugar' },
+    pro: { financiamiento: 'tipo', estado: 'estado', tipoProyecto: 'tipoProyecto', rol: 'rol', financiador: 'financiador', area: 'area' },
+    eve: { estado: 'estado', tipo: 'tipo', modalidad: 'modalidad', rol: 'rol', lugar: 'lugar' }
+  };
+
+  function iniciarFiltrosInvestigador() {
+    Object.keys(filtrosGeneralesInv).forEach(function(clave) {
+      var valores = [];
+      investigadoresReporte().forEach(function(inv) {
+        var valor = clave === 'linea' ? lineasInvestigador(inv) : inv[filtrosGeneralesInv[clave]];
+        valores = valores.concat(valor || []);
+      });
+      llenarSelectReporte('inv-filtro-' + clave, unicosReporte(valores), 'Todos');
+    });
+    var ciclos = [];
+    investigadoresReporte().forEach(function(inv) {
+      ['publicaciones', 'proyectos', 'eventos', 'entregas'].forEach(function(campo) {
+        (inv[campo] || []).forEach(function(item) { if (item.ciclo) ciclos.push(item.ciclo); });
+      });
+    });
+    ciclos.push(cicloReporte());
+    llenarSelectReporte('inv-ciclo', unicosReporte(ciclos).sort().reverse());
+    document.getElementById('inv-ciclo').value = cicloReporte();
+  }
+
+  function sincronizarCicloInvestigador() {
+    var ciclo = valorReporte('inv-ciclo');
+    // El estado proviene del selector global; un ciclo sin registro se trata como cerrado.
+    var opcion = document.querySelector('#ciclo-dropdown [data-ciclo="' + ciclo + '"]');
+    selectCiclo(ciclo, opcion && /ACTIVO/.test(opcion.textContent) ? 'ACTIVO' : 'CERRADO');
+  }
+
+  function filtrarInvestigadoresReporte() {
+    var lista = investigadoresReporte().filter(function(inv) {
+      return Object.keys(filtrosGeneralesInv).every(function(clave) {
+        var filtro = valorReporte('inv-filtro-' + clave);
+        var valor = clave === 'linea' ? lineasInvestigador(inv) : inv[filtrosGeneralesInv[clave]];
+        return !filtro || (Array.isArray(valor) ? valor.indexOf(filtro) !== -1 : valor === filtro);
+      });
+    });
+    llenarSelectReporte('select-investigador', lista.map(function(inv) { return { valor: inv.id, texto: inv.nombre + ' · ID ' + inv.id }; }));
+    cargarDatosInvestigador();
+  }
+
+  function datosPeriodoInvestigador(inv, todosCiclos) {
+    var datos = {};
+    var ciclo = cicloReporte();
+    var anual = valorReporte('inv-periodo') === 'año';
+    var linea = valorReporte('inv-filtro-linea');
+    ['publicaciones', 'proyectos', 'eventos', 'entregas'].forEach(function(campo) {
+      datos[campo] = registrosReporte(inv ? [inv] : [], campo, linea, '').filter(function(item) {
+        return todosCiclos || (anual ? String(item.ciclo).slice(0, 10) === ciclo.slice(0, 10) : item.ciclo === ciclo);
+      });
+    });
+    return datos;
+  }
+
+  var catalogosRegistrosInv = {
+    'pub-tipo': ['Journal', 'Conferencia', 'Editor', 'Otro'],
+    'pub-estado': ['En preparación', 'En revisión', 'Aceptado', 'Publicado', 'Rechazado'],
+    'pub-indexacion': ['Scopus', 'WoS', 'Otras', 'Sin indexación'],
+    'pub-cuartil': ['Q1', 'Q2', 'Q3', 'Q4'],
+    'pro-financiamiento': ['Interno', 'Externo'],
+    'pro-estado': ['Aprobado', 'En desarrollo', 'Finalizado'],
+    'pro-tipoProyecto': ['Investigación básica', 'Investigación aplicada'],
+    'pro-rol': ['Principal', 'Responsable', 'Integrante'],
+    'eve-estado': ['Realizado', 'Programado', 'Cancelado'],
+    'eve-tipo': ['Conferencia', 'Congreso', 'Taller', 'Revisión', 'Seminario', 'Simposio', 'Jornada', 'Curso', 'Otro'],
+    'eve-modalidad': ['Virtual', 'Presencial', 'Híbrida', 'Otra'],
+    'eve-rol': ['Expositor', 'Ponente', 'Organizador', 'Revisor', 'Asistente']
+  };
+
+  function registrosCatalogoInv(tipo) {
+    // El catálogo no depende del investigador, ciclo, búsqueda o página visibles.
+    return registrosReporte(investigadoresReporte(), tipo, '', '');
+  }
+
+  function prepararFiltrosRegistrosInv(datos, contexto) {
+    ['pub', 'pro', 'eve'].forEach(function(pref, indice) {
+      var registros = registrosCatalogoInv(['publicaciones', 'proyectos', 'eventos'][indice]);
+      Object.keys(camposRegistrosInv[pref]).forEach(function(clave) {
+        var valores = registros.map(function(item) { return item[camposRegistrosInv[pref][clave]]; }).filter(Boolean);
+        llenarSelectReporte(idFiltroRegistroInv(pref, clave, contexto), unicosReporte(valores.concat(catalogosRegistrosInv[pref + '-' + clave] || [])), 'Todos');
+      });
+    });
+  }
+
+  function filtrarRegistrosInv(lista, pref, contexto) {
+    var campoNumero = pref === 'pub' ? 'hIndex' : 'presupuesto';
+    return lista.filter(function(item) {
+      var coincide = Object.keys(camposRegistrosInv[pref]).every(function(clave) {
+        return !valorReporte(idFiltroRegistroInv(pref, clave, contexto)) || item[camposRegistrosInv[pref][clave]] === valorReporte(idFiltroRegistroInv(pref, clave, contexto));
+      });
+      var evidencia = valorReporte(idFiltroRegistroInv(pref, 'evidencia', contexto));
+      if (evidencia && Boolean(urlReporte(item.urlEvidencia)) !== (evidencia === 'si')) return false;
+      if (pref !== 'eve') {
+        var minimo = valorReporte(idFiltroRegistroInv(pref, 'min', contexto));
+        var maximo = valorReporte(idFiltroRegistroInv(pref, 'max', contexto));
+        if ((minimo !== '' || maximo !== '') && item[campoNumero] == null) return false;
+        if (minimo !== '' && Number(item[campoNumero]) < Number(minimo)) return false;
+        if (maximo !== '' && Number(item[campoNumero]) > Number(maximo)) return false;
+      }
+      return coincide;
+    }).sort(function(a, b) {
+      var orden = valorReporte(idFiltroRegistroInv(pref, 'orden', contexto));
+      if (orden === 'cuartil') return String(a.cuartil || 'Z').localeCompare(String(b.cuartil || 'Z'));
+      if (orden === 'fecha') return (Date.parse(b.fecha) || 0) - (Date.parse(a.fecha) || 0);
+      var campo = orden === 'impacto' ? 'hIndex' : orden;
+      return (Number(b[campo]) || 0) - (Number(a[campo]) || 0);
+    });
+  }
+
+  function metricasInvestigador(pares) {
+    return '<div class="reporte-metricas">' + pares.map(function(par, indice) {
+      var ranking = par[0] === 'Posición en el ranking general';
+      var partes = ranking ? String(par[1]).match(/^(\d+) de (\d+)$/) : null;
+      var cercania = partes ? (Number(partes[2]) - Number(partes[1])) / Math.max(1, Number(partes[2]) - 1) : 0;
+      var acabado = !partes ? 'ranking-sin-datos' : Number(partes[1]) === 1 ? 'ranking-oro' : cercania >= .75 ? 'ranking-dorado' : cercania >= .4 ? 'ranking-champan' : 'ranking-neutro';
+      var valor = partes ? '<b class="ranking-posicion">' + partes[1] + '</b><small class="ranking-total"> de ' + partes[2] + '</small>' : escaparReporte(par[1]);
+      return '<div class="glass-card reporte-metrica metrica-tono-' + (indice % 5) + (ranking ? ' metrica-ranking ' + acabado : '') + '"><span>' + escaparReporte(par[0]) + '</span><strong>' + valor + '</strong></div>';
+    }).join('') + '</div>';
+  }
+
+  function calidadInvestigador(publicaciones) {
+    var lista = publicaciones.filter(function(p) { return numeroEstadistica(p.hIndex) != null; });
+    return lista.length ? lista.reduce(function(suma, p) { return suma + Number(p.hIndex); }, 0) / lista.length : null;
+  }
+
+  function abrirFiltrosInvestigador(seccion) {
+    var dialogo = document.getElementById('inv-dialogo-' + seccion);
+    if (dialogo) dialogo.showModal();
+  }
+
+  // FA-003 (pasos 7 y 8) y FA-014 de CU-005: «Restablecer» elimina los criterios de la
+  // colección (diálogo, búsqueda y filtros de columna); «Cerrar» los conserva (FA-020).
+  function restablecerFiltrosColeccion(tipo) {
+    var carrera = tipo.indexOf('carrera-') === 0;
+    var dialogo = document.getElementById((carrera ? 'carrera' : 'inv') + '-dialogo-' + tipoBaseColeccionInv(tipo));
+    dialogo.querySelectorAll('select, input').forEach(function(control) {
+      control.value = control.tagName === 'SELECT' ? control.options[0].value : '';
+    });
+    var estado = estadoColeccionInv(tipo);
+    estado.busqueda = '';
+    estado.filtrosCabecera = {};
+    document.getElementById(idElementoColeccionInv(tipo, 'buscar')).value = '';
+    if (carrera) actualizarReporteCarrera(); else actualizarReporteInvestigador();
+  }
+
+  function actualizarReporteInvestigador() {
+    var inv = investigadoresReporte().find(function(item) { return item.id === valorReporte('select-investigador'); });
+    var datos = datosPeriodoInvestigador(inv);
+    prepararFiltrosRegistrosInv(datos);
+    var pub = datos.publicaciones;
+    renderizarProduccionReporte('inv', { publicaciones: filtrarRegistrosInv(pub, 'pub'), proyectos: filtrarRegistrosInv(datos.proyectos, 'pro'), eventos: filtrarRegistrosInv(datos.eventos, 'eve') });
+    renderizarEstadisticasInvestigador(inv, datos);
+    renderizarGraficosInvestigador(datos);
+  }
+
+  function renderizarEstadisticasInvestigador(inv, datos) {
+    var destino = document.getElementById('inv-estadisticas');
+    // FA-009 de CU-005: sin investigador compatible se muestran conteos en cero.
+    if (!inv) { destino.innerHTML = metricasInvestigador([['Publicaciones totales', 0], ['Publicaciones Q1–Q2', 0], ['Publicaciones Scopus/WoS', 0], ['Entregas completadas / total', '0 / 0'], ['Posición en el ranking general', 'No registrado']]); return; }
+    var comparables = investigadoresReporte().map(function(persona) {
+      var d = datosPeriodoInvestigador(persona);
+      return { id: persona.id, general: valorRenacytReporte(persona.renacytNivel), cantidad: d.publicaciones.length + d.proyectos.length + d.eventos.length, calidad: calidadInvestigador(d.publicaciones) };
+    });
+    var actual = comparables.find(function(p) { return p.id === inv.id; });
+    function posicion(campo) {
+      if (actual[campo] == null) return 'Sin datos';
+      return (1 + comparables.filter(function(p) { return p[campo] != null && (p[campo] > actual[campo] || (campo === 'general' && p[campo] === actual[campo] && p.cantidad > actual.cantidad)); }).length) + ' de ' + comparables.filter(function(p) { return p[campo] != null; }).length;
+    }
+    var pub = datos.publicaciones;
+    var completas = datos.entregas.filter(function(e) { return e.estado === 'Completada'; }).length;
+    var indicadores = [
+      ['Publicaciones totales', pub.length],
+      ['Publicaciones Q1–Q2', pub.filter(function(p) { return ['Q1', 'Q2'].indexOf(p.cuartil) !== -1; }).length],
+      ['Publicaciones Scopus/WoS', pub.filter(function(p) { return /scopus|wos/i.test(p.indexacion || ''); }).length],
+      ['Entregas completadas / total', completas + ' / ' + datos.entregas.length],
+      ['Posición en el ranking general', posicion('general')]
+    ];
+    destino.innerHTML = metricasInvestigador(indicadores);
+  }
+
+  // FIN: Clasificación y filtros del reporte por investigador
+
+  // INICIO: Gráficos y calidad del investigador
+
+  function renderizarGraficosInvestigador(datos) {
+    var publicaciones = filtrarRegistrosInv(datos.publicaciones, 'pub');
+    var proyectos = filtrarRegistrosInv(datos.proyectos, 'pro');
+    var media = calidadInvestigador(publicaciones);
+    // Escala común del periodo: H-index máximo de los medios de todos los investigadores.
+    var maximo = Math.max.apply(null, investigadoresReporte().reduce(function(lista, persona) {
+      return lista.concat(datosPeriodoInvestigador(persona).publicaciones.map(function(pub) { return Number(pub.hIndex) || 0; }));
+    }, [1]));
+    var angulo = media == null ? -90 : -90 + 180 * Math.min(1, Math.max(0, media / maximo));
+    document.getElementById('inv-grafico-calidad').innerHTML = media == null ? '<p class="reporte-vacio">No registrado</p>' :
+      '<svg class="inv-velocimetro" viewBox="0 0 220 145" role="img" aria-label="H-index medio: ' + media.toFixed(1) + '; escala de 0 a ' + maximo + '"><path d="M 20 110 A 90 90 0 0 1 200 110" fill="none" stroke="var(--superficie-muted)" stroke-width="18"/><path d="M 20 110 A 90 90 0 0 1 200 110" fill="none" stroke="var(--grafico-1)" stroke-width="18" pathLength="100" stroke-dasharray="' + (100 * media / maximo) + ' 100"/><line x1="110" y1="110" x2="110" y2="36" stroke="var(--primario)" stroke-width="3" transform="rotate(' + angulo + ' 110 110)"/><circle cx="110" cy="110" r="5" fill="var(--primario)"/><text x="110" y="138" text-anchor="middle">' + media.toFixed(1) + ' H-index</text><text x="12" y="135">0</text><text x="208" y="135" text-anchor="end">' + maximo + '</text></svg>';
+    var campo = 'estado';
+    var grupos = campo === 'estado' && proyectos.length ? ['Aprobado', 'En desarrollo', 'Finalizado'].map(function(estado) {
+      return { nombre: estado, valor: proyectos.filter(function(p) { return p.estado === estado; }).length };
+    }).concat(agruparReporte(proyectos.filter(function(p) { return ['Aprobado', 'En desarrollo', 'Finalizado'].indexOf(p.estado) === -1; }), 'estado')) : agruparReporte(proyectos, campo);
+    renderizarBarrasReporte('inv-grafico-proyectos', grupos, 'Proyectos');
+  }
+
+  function agruparReporte(lista, campo) {
+    var grupos = Object.create(null);
+    lista.forEach(function(item) {
+      var clave = item[campo] || 'Sin registrar';
+      grupos[clave] = (grupos[clave] || 0) + 1;
+    });
+    return Object.keys(grupos).sort(function(a, b) { return a.localeCompare(b, 'es'); }).map(function(nombre) { return { nombre: nombre, valor: grupos[nombre] }; });
+  }
+
+  // FIN: Gráficos y calidad del investigador
+
+  // INICIO: Renderizadores compartidos de gráficos
+
+  function renderizarColumnasCarrera(id, grupos, unidad) {
+    var maximo = Math.max.apply(null, grupos.map(function(g) { return g.valor; }).concat([1]));
+    document.getElementById(id).innerHTML = grupos.length ? '<ul class="carrera-barras-verticales" aria-label="' + escaparReporte(unidad) + '">' + grupos.map(function(g) {
+      return '<li><strong>' + g.valor + '</strong><div class="carrera-barra-vertical" aria-hidden="true"><span style="height:' + (100 * g.valor / maximo) + '%"></span></div><span>' + escaparReporte(g.nombre) + '</span></li>';
+    }).join('') + '</ul>' : '<p class="reporte-vacio">Sin datos.</p>';
+  }
+
+  function renderizarBarrasReporte(id, grupos, unidad) {
+    var maximo = Math.max.apply(null, grupos.map(function(g) { return g.valor; }).concat([1]));
+    document.getElementById(id).innerHTML = grupos.length ? '<ul class="reporte-barras" aria-label="' + unidad + '">' + grupos.map(function(g) {
+      return '<li><span>' + escaparReporte(g.nombre) + '</span><div class="reporte-barra" aria-hidden="true"><span style="width:' + (100 * g.valor / maximo) + '%"></span></div><strong>' + g.valor + '</strong></li>';
+    }).join('') + '</ul>' : '<p class="reporte-vacio">Sin datos.</p>';
+  }
+
+  function renderizarPastelReporte(id, grupos, unidad) {
+    grupos = grupos.filter(function(g) { return Number(g.valor) > 0; });
+    if (!grupos.length) { document.getElementById(id).innerHTML = '<p class="reporte-vacio">Sin datos.</p>'; return; }
+    var colores = [colorGraficoReporte('--grafico-1', '#0759A9'), colorGraficoReporte('--grafico-2', '#007B96'), colorGraficoReporte('--grafico-3', '#C18317'), colorGraficoReporte('--grafico-6', '#1B8A68')];
+    var total = grupos.reduce(function(suma, grupo) { return suma + grupo.valor; }, 0);
+    var acumulado = 0;
+    var gradiente = grupos.map(function(g, i) {
+      var inicio = acumulado;
+      acumulado += 100 * g.valor / total;
+      return colores[i % colores.length] + ' ' + inicio + '% ' + acumulado + '%';
+    }).join(',');
+    document.getElementById(id).innerHTML = '<div class="reporte-pastel-contenedor"><div class="reporte-pastel" role="img" aria-label="' + escaparReporte(total + ' ' + unidad) + '" style="background:conic-gradient(' + gradiente + ')"><span>' + (total + '<small>' + escaparReporte(unidad) + '</small>') + '</span></div><ul class="reporte-leyenda">' + grupos.map(function(g, i) {
+      return '<li><span style="background:' + colores[i % colores.length] + '" aria-hidden="true"></span><span>' + escaparReporte(g.nombre) + '</span><strong>' + g.valor + ' (' + Math.round(100 * g.valor / total) + '%)</strong></li>';
+    }).join('') + '</ul></div>';
+  }
+
+  // FIN: Renderizadores compartidos de gráficos
+
+  // INICIO: Series temporales del reporte por carrera
+
+  function seriesTemporalesCarrera(datos, temporalidad) {
+    var periodos = Object.create(null);
+    ['publicaciones', 'proyectos', 'eventos'].forEach(function(tipo) {
+      datos[tipo].forEach(function(item) {
+        var fecha = fechaRegistroGraficoCarrera(item, tipo);
+        if (!fecha) return;
+        var inicio = inicioPeriodoGraficoCarrera(fecha, temporalidad);
+        var clave = inicio.toISOString().slice(0, 10);
+        if (!periodos[clave]) periodos[clave] = { ciclo: etiquetaPeriodoGraficoCarrera(inicio, temporalidad), fecha: clave, publicaciones: 0, proyectos: 0, internos: 0, externos: 0, eventos: 0 };
+        periodos[clave][tipo] += 1;
+        if (tipo === 'proyectos' && item.tipo === 'Interno') periodos[clave].internos += 1;
+        if (tipo === 'proyectos' && item.tipo === 'Externo') periodos[clave].externos += 1;
+      });
+    });
+    var claves = Object.keys(periodos).sort();
+    if (!claves.length) return [];
+    var cursor = fechaGraficoCarrera(claves[0]);
+    var fin = claves[claves.length - 1];
+    var filas = [];
+    // Los intervalos sin contribuciones se muestran en cero entre los registros fechados.
+    while (cursor.toISOString().slice(0, 10) <= fin) {
+      var clave = cursor.toISOString().slice(0, 10);
+      filas.push(periodos[clave] || { ciclo: etiquetaPeriodoGraficoCarrera(cursor, temporalidad), fecha: clave, publicaciones: 0, proyectos: 0, internos: 0, externos: 0, eventos: 0 });
+      if (temporalidad === 'mes') cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+      else cursor.setUTCDate(cursor.getUTCDate() + (temporalidad === 'semana' ? 7 : 1));
+    }
+    return filas;
+  }
+
+  function seriesCarreraReporte(datos, temporalidad) {
+    if (['mes', 'semana', 'dia'].indexOf(temporalidad) !== -1) return seriesTemporalesCarrera(datos, temporalidad);
+    var ciclos = [];
+    ['publicaciones', 'proyectos', 'eventos'].forEach(function(campo) {
+      datos[campo].forEach(function(item) { ciclos.push(item.ciclo || 'Sin ciclo registrado'); });
+    });
+    return unicosReporte(ciclos).map(function(ciclo) {
+      var proyectos = datos.proyectos.filter(function(item) { return (item.ciclo || 'Sin ciclo registrado') === ciclo; });
+      return { ciclo: ciclo,
+        publicaciones: datos.publicaciones.filter(function(item) { return (item.ciclo || 'Sin ciclo registrado') === ciclo; }).length,
+        proyectos: proyectos.length,
+        internos: proyectos.filter(function(item) { return item.tipo === 'Interno'; }).length,
+        externos: proyectos.filter(function(item) { return item.tipo === 'Externo'; }).length,
+        eventos: datos.eventos.filter(function(item) { return (item.ciclo || 'Sin ciclo registrado') === ciclo; }).length
+      };
+    });
+  }
+
+  function renderizarSeriesReporte(datos, seleccion, temporalidad) {
+    var filas = seriesCarreraReporte(datos, temporalidad);
+    if (!filas.length) { document.getElementById('carrera-series').innerHTML = '<p class="reporte-vacio">Sin contribuciones en los periodos seleccionados.</p>'; return; }
+    var series = [['publicaciones', 'Publicaciones', 'var(--grafico-1)'], ['proyectos', 'Proyectos', 'var(--grafico-2)'], ['internos', 'Proyectos internos', 'var(--grafico-3)'], ['externos', 'Proyectos externos', 'var(--grafico-4)'], ['eventos', 'Eventos', 'var(--grafico-5)']];
+    var respaldos = ['#0759A9', '#007B96', '#C18317', '#8058C3', '#276A8B'];
+    series = series.map(function(serie, indice) { return [serie[0], serie[1], colorGraficoReporte(serie[2].slice(4, -1), respaldos[indice])]; });
+    if (seleccion) series = series.filter(function(serie) { return seleccion.indexOf(serie[0]) !== -1; });
+    if (!series.length) { document.getElementById('carrera-series').innerHTML = '<p class="reporte-vacio">Selecciona al menos un indicador en los filtros.</p>'; return; }
+    var maximo = Math.max.apply(null, filas.reduce(function(valores, fila) { return valores.concat(series.map(function(serie) { return fila[serie[0]]; })); }, [1]));
+    var marcas = [0, Math.ceil(maximo / 2), maximo].filter(function(valor, indice, valores) { return valores.indexOf(valor) === indice; });
+    var ancho = Math.max(600, filas.length * 90);
+    var intervaloEtiquetas = Math.max(1, Math.ceil(filas.length / Math.max(2, Math.floor((ancho - 128) / 115))));
+    function x(indice) { return filas.length === 1 ? ancho / 2 : 64 + indice * (ancho - 128) / (filas.length - 1); }
+    function y(valor) { return 110 - 90 * valor / maximo; }
+    var svg = '<svg class="carrera-series-svg" preserveAspectRatio="xMinYMin meet" style="width:' + ancho + 'px" viewBox="0 0 ' + ancho + ' 146" role="img" aria-label="Evolución del número de publicaciones, proyectos internos y externos y eventos por ' + ({ mes: 'mes', semana: 'semana', dia: 'día' }[temporalidad] || 'ciclo') + '. Cada punto incluye su periodo, indicador y valor.">';
+    svg += marcas.map(function(valor) { return '<line x1="64" y1="' + y(valor) + '" x2="' + (ancho - 64) + '" y2="' + y(valor) + '" stroke="' + colorGraficoReporte('--borde', '#D1DFEA') + '"/><text x="52" y="' + (y(valor) + 4) + '" text-anchor="end">' + valor + '</text>'; }).join('');
+    svg += filas.map(function(fila, indice) { return indice % intervaloEtiquetas === 0 || indice === filas.length - 1 ? '<text x="' + x(indice) + '" y="132" text-anchor="middle">' + escaparReporte(fila.ciclo.replace('Ciclo ', '')) + '</text>' : ''; }).join('');
+    svg += series.map(function(serie) {
+      return '<polyline fill="none" stroke="' + serie[2] + '" stroke-width="2" points="' + filas.map(function(fila, indice) { return x(indice) + ',' + y(fila[serie[0]]); }).join(' ') + '"/>' + filas.map(function(fila, indice) {
+        return '<circle cx="' + x(indice) + '" cy="' + y(fila[serie[0]]) + '" r="3" fill="' + serie[2] + '"><title>' + escaparReporte(fila.ciclo + ': ' + serie[1] + ' ' + fila[serie[0]]) + '</title></circle>';
+      }).join('');
+    }).join('') + '</svg>';
+    var leyenda = '<ul class="carrera-series-leyenda">' + series.map(function(serie) { return '<li><span style="background:' + serie[2] + '" aria-hidden="true"></span>' + serie[1] + '</li>'; }).join('') + '</ul>';
+    document.getElementById('carrera-series').innerHTML = svg + leyenda;
+  }
+
+  // FIN: Series temporales del reporte por carrera
+
+  // INICIO: Preparación de la descarga por investigador
+
+  function abrirDescargaInvestigador() {
+    // FA-008 de CU-005: operación protegida; bloqueo por sesión inválida o expirada.
+    if (typeof probarOperacionProtegida === 'function' && !probarOperacionProtegida()) return;
+    if (!valorReporte('select-investigador')) {
+      alert('Selecciona un investigador para descargar su reporte.');
+      return;
+    }
+    textoReporte('inv-descarga-estado', 'Selecciona al menos una sección.');
+    prepararElementosDescarga();
+    document.getElementById('inv-dialogo-descarga').showModal();
+  }
+
+  function datosDescargaInvestigador(secciones) {
+    var inv = investigadoresReporte().find(function(persona) { return persona.id === valorReporte('select-investigador'); });
+    if (!inv) return null;
+    var datos = datosPeriodoInvestigador(inv);
+    var reporte = { titulo: 'Reporte por Investigador', generado: new Date().toISOString(), demostracion: true, secciones: {} };
+    secciones.forEach(function(clave) {
+      if (clave === 'dedicacion') reporte.secciones[clave] = { disponibilidad: inv.dias || [], tipo: inv.dedicacion, categoria: inv.categoria };
+      if (clave === 'ficha') reporte.secciones[clave] = { id: inv.id, nombre: inv.nombre, dni: inv.dni, correo: inv.correo, carrera: inv.carrera, renacytCodigo: inv.renacytCodigo, renacytGrupo: inv.renacytGrupo, renacytNivel: inv.renacytNivel, ctivitae: urlReporte(inv.ctivitaeUrl), lineas: lineasInvestigador(inv) };
+      if (clave === 'graficos') reporte.secciones[clave] = { calidadHIndex: calidadInvestigador(filtrarRegistrosInv(datos.publicaciones, 'pub')), proyectos: agruparReporte(filtrarRegistrosInv(datos.proyectos, 'pro'), 'estado') };
+      if (clave === 'estadisticas') {
+        reporte.secciones[clave] = { indicadores: [] };
+        document.querySelectorAll('#inv-estadisticas .reporte-metrica').forEach(function(metrica) {
+          reporte.secciones[clave].indicadores.push({ indicador: metrica.querySelector('span').textContent, valor: metrica.querySelector('strong').textContent });
+        });
+      }
+      if (['publicaciones', 'proyectos', 'eventos'].indexOf(clave) !== -1) reporte.secciones[clave] = registrosColeccionInv(clave);
+    });
+    return reporte;
+  }
+
+  // FIN: Preparación de la descarga por investigador
+
+  // INICIO: Serialización de reportes en CSV
+
+  function csvDescargaInvestigador(reporte) {
+    var filas = [['Sección', 'Registro', 'Campo', 'Valor']];
+    function recorrer(valor, ruta, seccion, registro) {
+      if (valor !== null && typeof valor === 'object') {
+        Object.keys(valor).forEach(function(clave) { recorrer(valor[clave], ruta ? ruta + '.' + clave : clave, seccion, registro); });
+      } else filas.push([seccion, registro, ruta, valor == null ? '' : valor]);
+    }
+    Object.keys(reporte.secciones).forEach(function(seccion) {
+      var datos = reporte.secciones[seccion];
+      if (Array.isArray(datos)) {
+        if (!datos.length) filas.push([seccion, '', 'Estado', 'Sin registros']);
+        datos.forEach(function(item, indice) { recorrer(item, '', seccion, indice + 1); });
+      } else recorrer(datos, '', seccion, '');
+    });
+    return '\uFEFF' + filas.map(function(fila) {
+      return fila.map(function(celda) {
+        var texto = String(celda);
+        // Evita interpretar texto exportado como fórmulas en hojas de cálculo.
+        if (/^[=+@\-\t\r]/.test(texto)) texto = "'" + texto;
+        return '"' + texto.replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\r\n');
+  }
+
+  // FIN: Serialización de reportes en CSV
+
+  // INICIO: Selección detallada de elementos para descarga
+
+  function etiquetaDescarga(clave) {
+    var etiquetas = { ficha: 'Ficha del investigador', dedicacion: 'Dedicación', estadisticas: 'Estadísticas', graficos: 'Gráficos', comparativas: 'Comparativas y rankings', investigadores: 'Investigadores', publicaciones: 'Publicaciones', proyectos: 'Proyectos', eventos: 'Eventos', kpis: 'Indicadores principales', produccion: 'Producción científica', series: 'Series temporales', calidadHIndex: 'Promedio de calidad (H-index)', renacytCodigo: 'Código RENACYT', renacytGrupo: 'Grupo RENACYT', renacytNivel: 'Nivel RENACYT', ctivitae: 'CTI Vitae', dni: 'DNI', hIndex: 'H-index', q12: 'Publicaciones Q1–Q2', porAnio: 'Por año', porCuartil: 'Por cuartil', porcentajeQ12: 'Porcentaje Q1–Q2', id: 'Identificador' };
+    Object.keys(columnasColeccionInv).forEach(function(tipo) {
+      columnasColeccionInv[tipo].concat(camposTablaColeccionInv[tipo]).forEach(function(par) { if (!etiquetas[par[0]]) etiquetas[par[0]] = par[1]; });
+    });
+    var texto = etiquetas[clave] || clave.replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚÑ])/g, '$1 $2');
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  }
+
+  // Las rutas representan indicadores individuales o campos de las colecciones.
+  function opcionesElementosDescarga(reporte) {
+    var opciones = {};
+    Object.keys(reporte.secciones).forEach(function(seccion) {
+      var lista = [];
+      function recorrer(valor, ruta, nombres) {
+        if (valor && !Array.isArray(valor) && typeof valor === 'object') {
+          Object.keys(valor).forEach(function(clave) {
+            if (seccion === 'graficos' && clave === 'filtros') return;
+            recorrer(valor[clave], ruta.concat(clave), nombres.concat(etiquetaDescarga(clave)));
+          });
+        } else lista.push({ ruta: ruta.join('.'), etiqueta: nombres.join(' / ') });
+      }
+      var datos = reporte.secciones[seccion];
+      if (['publicaciones', 'proyectos', 'eventos', 'investigadores'].indexOf(seccion) !== -1 && Array.isArray(datos)) {
+        var campos = [];
+        datos.forEach(function(item) { Object.keys(item).forEach(function(campo) { if (campos.indexOf(campo) === -1) campos.push(campo); }); });
+        if (!campos.length && columnasColeccionInv[seccion]) campos = columnasColeccionInv[seccion].map(function(par) { return par[0]; });
+        campos.forEach(function(campo) { lista.push({ ruta: campo, etiqueta: etiquetaDescarga(campo) }); });
+      } else if (seccion === 'estadisticas' && datos.indicadores) {
+        datos.indicadores.forEach(function(item, indice) { lista.push({ ruta: 'indicadores.' + indice, etiqueta: item.indicador }); });
+      } else recorrer(datos, [], []);
+      if (!lista.length) lista.push({ ruta: '__vacio', etiqueta: 'Incluir estado sin registros' });
+      opciones[seccion] = lista;
+    });
+    return opciones;
+  }
+
+  function prepararElementosDescarga(contexto) {
+    var prefijo = contexto === 'carrera' ? 'carrera-' : 'inv-';
+    var dialogo = document.getElementById(prefijo + 'dialogo-descarga');
+    var controles = Array.from(dialogo.querySelectorAll('input[name="seccion-reporte"]'));
+    var secciones = controles.map(function(control) { return control.value; });
+    var reporte = contexto === 'carrera' ? datosDescargaCarrera(secciones) : datosDescargaInvestigador(secciones);
+    if (!reporte) return;
+    var opciones = opcionesElementosDescarga(reporte);
+    var anterior = dialogo.querySelector('.descarga-elementos');
+    if (anterior) anterior.remove();
+    var contenedor = document.createElement('div');
+    contenedor.className = 'descarga-elementos';
+    contenedor.innerHTML = '<p class="reporte-nota">Despliega cada sección para elegir indicadores, gráficos o campos. Se conservan los filtros actuales.</p>' + secciones.map(function(seccion) {
+      return '<details data-seccion="' + seccion + '"><summary>' + escaparReporte(etiquetaDescarga(seccion)) + '</summary><fieldset><legend class="sr-only">Elementos de ' + escaparReporte(etiquetaDescarga(seccion)) + '</legend>' + opciones[seccion].map(function(opcion) {
+        return '<label><input type="checkbox" name="elemento-reporte" data-seccion="' + seccion + '" value="' + escaparReporte(opcion.ruta) + '" checked> ' + escaparReporte(opcion.etiqueta) + '</label>';
+      }).join('') + '</fieldset></details>';
+    }).join('');
+    dialogo.querySelector('.inv-opciones-descarga').after(contenedor);
+    controles.forEach(function(control) {
+      function actualizar() {
+        var detalle = contenedor.querySelector('[data-seccion="' + control.value + '"]');
+        detalle.hidden = !control.checked;
+        detalle.querySelectorAll('input').forEach(function(input) { input.disabled = !control.checked; });
+      }
+      control.onchange = actualizar;
+      actualizar();
+    });
+  }
+
+  function filtrarElementosDescarga(reporte, dialogo) {
+    var seleccion = {};
+    dialogo.querySelectorAll('input[name="elemento-reporte"]:checked:not(:disabled)').forEach(function(control) {
+      if (!seleccion[control.dataset.seccion]) seleccion[control.dataset.seccion] = [];
+      seleccion[control.dataset.seccion].push(control.value);
+    });
+    Object.keys(reporte.secciones).forEach(function(seccion) {
+      var rutas = seleccion[seccion] || [];
+      if (!rutas.length) { delete reporte.secciones[seccion]; return; }
+      var datos = reporte.secciones[seccion];
+      if (Array.isArray(datos)) {
+        reporte.secciones[seccion] = datos.map(function(item) {
+          var copia = {};
+          rutas.forEach(function(campo) { if (Object.prototype.hasOwnProperty.call(item, campo)) copia[campo] = item[campo]; });
+          return copia;
+        });
+      } else if (seccion === 'estadisticas' && datos.indicadores) {
+        reporte.secciones[seccion] = { indicadores: datos.indicadores.filter(function(item, indice) { return rutas.indexOf('indicadores.' + indice) !== -1; }) };
+      } else {
+        function proyectar(valor, ruta) {
+          if (rutas.indexOf(ruta) !== -1) return valor;
+          var copia = {};
+          Object.keys(valor || {}).forEach(function(clave) {
+            var siguiente = ruta ? ruta + '.' + clave : clave;
+            if (rutas.some(function(r) { return r === siguiente || r.indexOf(siguiente + '.') === 0; })) copia[clave] = proyectar(valor[clave], siguiente);
+          });
+          return copia;
+        }
+        reporte.secciones[seccion] = proyectar(datos, '');
+        if (seccion === 'graficos' && datos.filtros) {
+          reporte.secciones[seccion].filtros = {};
+          Object.keys(datos.filtros).forEach(function(clave) {
+            if (rutas.indexOf(clave === 'histograma' ? 'publicaciones' : clave) !== -1) reporte.secciones[seccion].filtros[clave] = datos.filtros[clave];
+          });
+        }
+      }
+    });
+    return reporte;
+  }
+
+  // FIN: Selección detallada de elementos para descarga
+
+  // INICIO: Documento visual e impresión de reportes
+
+  function htmlDescargaInvestigador(reporte, contexto) {
+    // Documento independiente: las dimensiones de pantalla no pasan al PDF.
+    function texto(valor) {
+      if (valor == null || valor === '') return 'No registrado';
+      if (Array.isArray(valor)) return valor.length ? valor.map(texto).join('; ') : 'Sin registros';
+      if (typeof valor === 'object') return Object.keys(valor).map(function(clave) { return etiquetaDescarga(clave) + ': ' + texto(valor[clave]); }).join('; ');
+      return String(valor);
+    }
+    function tabla(filas) {
+      if (!filas.length) return '<p>Sin registros.</p>';
+      var campos = [];
+      filas.forEach(function(fila) { Object.keys(fila).forEach(function(campo) { if (campos.indexOf(campo) === -1) campos.push(campo); }); });
+      var html = '';
+      // El número correlativo permite relacionar los bloques sin exportar campos no elegidos.
+      for (var inicio = 0; inicio < campos.length; inicio += 4) {
+        var bloque = campos.slice(inicio, inicio + 4);
+        html += '<div class="exportacion-tabla"><p class="continuacion">Campos ' + (inicio + 1) + '–' + Math.min(inicio + 4, campos.length) + ' de ' + campos.length + (inicio ? ' · Continuación' : '') + '</p><table><colgroup><col style="width:7%">' + bloque.map(function() { return '<col style="width:' + 93 / bloque.length + '%">'; }).join('') + '</colgroup><thead><tr><th scope="col">N.º</th>' + bloque.map(function(campo) { return '<th scope="col">' + escaparReporte(etiquetaDescarga(campo)) + '</th>'; }).join('') + '</tr></thead><tbody>' + filas.map(function(fila, indice) {
+          return '<tr><th scope="row">' + (indice + 1) + '</th>' + bloque.map(function(campo) { return '<td>' + escaparReporte(texto(fila[campo])) + '</td>'; }).join('') + '</tr>';
+        }).join('') + '</tbody></table></div>';
+      }
+      return html;
+    }
+    function contenido(datos, nivel) {
+      if (Array.isArray(datos)) return datos.every(function(item) { return item && typeof item === 'object' && !Array.isArray(item); }) ? tabla(datos) : '<p>' + escaparReporte(texto(datos)) + '</p>';
+      if (!datos || typeof datos !== 'object') return '<p>' + escaparReporte(texto(datos)) + '</p>';
+      var escalares = {}, html = '';
+      Object.keys(datos).forEach(function(clave) {
+        if (datos[clave] && typeof datos[clave] === 'object') html += '<h' + nivel + '>' + escaparReporte(etiquetaDescarga(clave)) + '</h' + nivel + '>' + contenido(datos[clave], Math.min(nivel + 1, 6));
+        else escalares[clave] = datos[clave];
+      });
+      return (Object.keys(escalares).length ? tabla([escalares]) : '') + html;
+    }
+    var graficos = contexto === 'carrera' ? { series: 'carrera-series', publicaciones: 'carrera-histograma', proyectos: 'carrera-grafico-proyectos', eventos: 'carrera-grafico-eventos' } : { calidadHIndex: 'inv-grafico-calidad', proyectos: 'inv-grafico-proyectos' };
+    var cuerpo = Object.keys(reporte.secciones).map(function(seccion) {
+      var datos = reporte.secciones[seccion];
+      var html = '';
+      if (seccion === 'graficos') {
+        Object.keys(datos).filter(function(clave) { return clave !== 'filtros'; }).forEach(function(clave) {
+          var original = document.getElementById(graficos[clave]);
+          if (original) {
+            var copia = original.cloneNode(true);
+            copia.removeAttribute('id');
+            copia.querySelectorAll('svg').forEach(function(svg) { svg.removeAttribute('style'); });
+            var serie = copia.querySelector('.carrera-series-svg');
+            var vista = serie ? serie.getAttribute('viewBox').split(/\s+/).map(Number) : null;
+            if (vista && vista[2] > 680) {
+              // Conserva la escala de una serie larga continuándola debajo.
+              for (var desplazamiento = 0; desplazamiento < vista[2]; desplazamiento += 640) {
+                var tramo = copia.cloneNode(true);
+                tramo.querySelector('svg').setAttribute('viewBox', desplazamiento + ' 0 680 ' + vista[3]);
+                html += '<figure><figcaption>' + escaparReporte(etiquetaDescarga(clave)) + ' · Tramo ' + (desplazamiento / 640 + 1) + '</figcaption>' + tramo.outerHTML + '</figure>';
+              }
+            } else html += '<figure><figcaption>' + escaparReporte(etiquetaDescarga(clave)) + '</figcaption>' + copia.outerHTML + '</figure>';
+          }
+          html += '<h3>' + escaparReporte(etiquetaDescarga(clave)) + ' · Datos</h3>' + contenido(datos[clave], 4);
+        });
+        if (datos.filtros) html += '<h3>Filtros de los gráficos</h3>' + contenido(datos.filtros, 4);
+      } else html = contenido(datos, 3);
+      return '<section><h2>' + escaparReporte(etiquetaDescarga(seccion)) + '</h2>' + html + '</section>';
+    }).join('');
+    var estilosGraficos = document.getElementById('empiria-estilos').textContent;
+    var estilos = `
+      @page { size: A4 portrait; margin: 14mm; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { width: auto; height: auto; min-width: 0; overflow: visible; }
+      body { display: block; max-width: 182mm; margin: 0 auto; padding: 16px; background: white; color: #172f42; font: 11px/1.45 Arial, sans-serif; }
+      h1 { font-size: 22px; } h2 { font-size: 18px; margin: 24px 0 12px; } h3 { font-size: 14px; } h4, h5, h6 { font-size: 12px; }
+      h1, h2, h3, h4, h5, h6, figcaption { break-after: avoid; overflow-wrap: anywhere; }
+      section, .exportacion-tabla { min-width: 0; max-width: 100%; break-inside: auto; }
+      table { width: 100%; min-width: 0; max-width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 16px; }
+      th, td { border: 1px solid #c8d4de; padding: 6px; text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; word-break: break-word; font: inherit; }
+      thead th { background: #eaf2f8; font-weight: bold; position: static; }
+      thead { display: table-header-group; } tr { break-inside: avoid; }
+      p { overflow-wrap: anywhere; } .continuacion { font-size: 10px; margin-bottom: 4px; }
+      figure { margin: 16px 0; max-width: 100%; overflow: hidden; break-inside: avoid; }
+      figcaption { font-weight: bold; margin-bottom: 8px; }
+      figure > div { width: 100%; min-width: 0; overflow: visible; }
+      figure svg { display: block; width: 100%; min-width: 0 !important; height: auto; max-height: 90mm; }
+      figure .carrera-series-leyenda, figure .reporte-leyenda { display: flex; flex-wrap: wrap; gap: 8px 16px; min-width: 0; list-style: none; padding: 0; }
+      figure .reporte-pastel-contenedor { flex-direction: column; }
+      figure .carrera-barras-verticales { min-width: 0; height: auto; flex-wrap: wrap; padding: 0; }
+      figure .carrera-barras-verticales li { min-width: 48px; max-width: 100%; }
+      @media print { body { padding: 0; max-width: none; } * { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+    `;
+    var contextoTexto = contexto === 'carrera' ? '<p>' + escaparReporte('Carrera: ' + reporte.carrera + ' · Línea: ' + reporte.linea + ' · ' + (reporte.periodo === 'todos' ? 'Todos los ciclos' : reporte.ciclo)) + '</p>' : '';
+    return '<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Empiria · ' + escaparReporte(reporte.titulo) + '</title><style>' + estilosGraficos + estilos + '</style></head><body><header><h1>Empiria · ' + escaparReporte(reporte.titulo) + '</h1><p>Generado: ' + escaparReporte(reporte.generado) + '</p>' + contextoTexto + '</header><main>' + cuerpo + '</main></body></html>';
+  }
+
+  // FIN: Documento visual e impresión de reportes
+
+  // INICIO: Generación y descarga de archivos
+
+  function descargarReporteInvestigador(event, contexto) {
+    var carrera = contexto === 'carrera';
+    var prefijo = carrera ? 'carrera-' : 'inv-';
+    event.preventDefault();
+    var secciones = [];
+    document.querySelectorAll('#' + prefijo + 'dialogo-descarga input[name="seccion-reporte"]:checked').forEach(function(control) { secciones.push(control.value); });
+    if (!secciones.length) { textoReporte(prefijo + 'descarga-estado', 'Selecciona al menos una sección.'); return; }
+    var reporte = carrera ? datosDescargaCarrera(secciones) : datosDescargaInvestigador(secciones);
+    if (!reporte) { textoReporte(prefijo + 'descarga-estado', 'Selecciona un investigador antes de generar el reporte.'); return; }
+    reporte = filtrarElementosDescarga(reporte, document.getElementById(prefijo + 'dialogo-descarga'));
+    if (!Object.keys(reporte.secciones).length) { textoReporte(prefijo + 'descarga-estado', 'Selecciona al menos un elemento dentro de las secciones.'); return; }
+    var formato = valorReporte(prefijo + 'formato-descarga');
+    var contenido = formato === 'json' ? JSON.stringify(reporte, null, 2) : formato === 'csv' ? csvDescargaInvestigador(reporte) : htmlDescargaInvestigador(reporte, contexto);
+    if (formato === 'pdf') {
+      var ventana = window.open('', '_blank');
+      if (!ventana) { textoReporte(prefijo + 'descarga-estado', 'Permite abrir ventanas emergentes para imprimir o guardar el PDF.'); return; }
+      ventana.document.open();
+      ventana.document.write(contenido);
+      ventana.document.close();
+      ventana.focus();
+      var fuentes = ventana.document.fonts ? ventana.document.fonts.ready : Promise.resolve();
+      fuentes.then(function() { ventana.requestAnimationFrame(function() { ventana.print(); }); });
+      textoReporte(prefijo + 'descarga-estado', 'En la ventana de impresión elige Guardar como PDF.');
+      return;
+    }
+    var url = URL.createObjectURL(new Blob([contenido], { type: { html: 'text/html;charset=utf-8', csv: 'text/csv;charset=utf-8', json: 'application/json;charset=utf-8' }[formato] }));
+    var enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = (carrera ? 'empiria-reporte-carrera' : 'reporte-investigador-' + valorReporte('select-investigador').replace(/[^a-z0-9_-]/gi, '_')) + '.' + formato;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    textoReporte(prefijo + 'descarga-estado', 'Reporte generado con las secciones y filtros seleccionados.');
+  }
+
+  // FIN: Generación y descarga de archivos
+
+  // INICIO: Acceso al consolidado en Google Sheets
+
+  // FA-007: URL del consolidado ya localizado por ciclo en esta sesión.
+  var CONSOLIDADOS_CICLO = {};
+  // Solo para la vista local sin Apps Script; en el despliegue lo resuelve obtenerConsolidadoCiclo.
+  var CONSOLIDADO_GENERAL = 'https://docs.google.com/spreadsheets/d/1JOwi7O7ZdHK16TMNMydyng7rG6aaONDSctEYa1vMjl0/edit?usp=sharing';
+
+  function abrirGoogleSheetsReporte() {
+    // FA-008 de CU-005: la apertura del consolidado es una operación protegida; si la
+    // sesión expiró se bloquea, se cierra la sesión y se solicita autenticarse otra vez.
+    if (typeof probarOperacionProtegida === 'function' && !probarOperacionProtegida()) return;
+    var ciclo = cicloReporte();
+    // La pestaña se abre de inmediato (antes de la llamada asíncrona) para que el
+    // navegador no la bloquee; con 'noopener' window.open devolvería null.
+    var ventana = window.open('', '_blank');
+    if (!ventana) { alert('No se pudo abrir el consolidado. El navegador bloqueó las ventanas emergentes. Permita las ventanas emergentes e intente nuevamente.'); return; }
+    ventana.opener = null;
+    // FA-017: se registra la incidencia, se comprueba si el archivo ya existe y se
+    // ofrece reintentar (regresa a FA-007) o volver a Reportes.
+    function fallo() {
+      ventana.close();
+      registrarAuditoria('Consolidado', 'Error de permisos, cuota o conexión con Google Sheets o Drive al abrir el consolidado.', ciclo);
+      avisoSistema('No se pudo abrir el consolidado por un error de permisos, cuota o conexión con Google Sheets o Drive. ' + (CONSOLIDADOS_CICLO[ciclo] ? 'El consolidado del ciclo ya existe; el reintento no creará otro.' : 'No se creó ningún archivo.'), 'Reintentar', abrirGoogleSheetsReporte);
+    }
+    // FA-007 paso 4: abre la URL autorizada en la otra pestaña.
+    function abrir(url) {
+      CONSOLIDADOS_CICLO[ciclo] = url;
+      ventana.location.href = url;
+    }
+    if (typeof condicionConsolidadoError === 'function' && condicionConsolidadoError()) { fallo(); return; }
+    // FA-007 pasos 2 y 3: el servidor localiza, crea si falta y registra el consolidado del ciclo.
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(abrir).withFailureHandler(fallo).obtenerConsolidadoCiclo(ciclo);
+    } else {
+      abrir(CONSOLIDADOS_CICLO[ciclo] || CONSOLIDADO_GENERAL); // vista local sin Apps Script
+    }
+  }
+
+  // FIN: Acceso al consolidado en Google Sheets
+
+  // INICIO: Modo oscuro
+  // El tema inicial lo fija Index antes de pintar; aquí solo se alterna y se recuerda.
+  function alternarTema() {
+    var oscuro = document.documentElement.getAttribute('data-theme') !== 'dark';
+    document.documentElement.setAttribute('data-theme', oscuro ? 'dark' : 'light');
+    try { localStorage.setItem('empiria-tema', oscuro ? 'oscuro' : 'claro'); } catch (e) {}
+    actualizarBotonTema();
+    // Los gráficos leen los colores de los tokens al dibujarse.
+    if (datosReportesCache) actualizarReportesPorCiclo();
+  }
+
+  function actualizarBotonTema() {
+    var oscuro = document.documentElement.getAttribute('data-theme') === 'dark';
+    var boton = document.getElementById('btn-tema');
+    var etiqueta = oscuro ? 'Activar modo claro' : 'Activar modo oscuro';
+    boton.setAttribute('aria-pressed', String(oscuro));
+    boton.setAttribute('aria-label', etiqueta);
+    boton.setAttribute('title', etiqueta);
+    document.getElementById('icono-tema').className = 'fa-solid ' + (oscuro ? 'fa-sun' : 'fa-moon');
+  }
+  actualizarBotonTema();
+  // FIN: Modo oscuro
+
+  // INICIO: Cierre contextual de desplegables
+
+  // Cierre contextual de desplegables
+  window.onclick = function(event) {
+    if (!event.target.closest('.relative')) {
+      var dropdown = document.getElementById('ciclo-dropdown');
+      if (dropdown && !dropdown.classList.contains('hidden')) {
+        dropdown.classList.add('hidden');
+      }
+    }
+  };
+  // FIN: Cierre contextual de desplegables
+
+</script>

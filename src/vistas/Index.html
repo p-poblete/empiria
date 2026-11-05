@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<!-- INICIO: Metadatos y recursos -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#F0F7FC">
+  <title>Empiria · Gestión de investigación</title>
+  <?!= include('Estilos'); ?>
+  <script>
+    // Tema antes de pintar: preferencia guardada o, en su defecto, la del sistema.
+    (function () {
+      var tema = null;
+      try { tema = localStorage.getItem('empiria-tema'); } catch (e) {}
+      if (tema !== 'oscuro' && tema !== 'claro') tema = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'oscuro' : 'claro';
+      document.documentElement.setAttribute('data-theme', tema === 'oscuro' ? 'dark' : 'light');
+    })();
+  </script>
+
+</head>
+<!-- FIN: Metadatos y recursos -->
+<body class="text-slate-800 antialiased h-screen flex overflow-hidden">
+
+  <?!= include('Login'); ?>
+
+  <!-- 2. DASHBOARD PRINCIPAL -->
+  
+<!-- INICIO: app-dashboard -->
+  <div id="app-dashboard" class="hidden flex-1 flex h-screen overflow-hidden w-full">
+
+    
+<!-- INICIO: Navegación principal -->
+    <aside id="sidebar-trabajo" aria-label="Navegación principal" class="w-64 glass-sidebar flex flex-col justify-between z-20 shrink-0">
+      <a href="#contenido-principal" class="saltar-contenido">Saltar al contenido</a>
+      <div class="p-6">
+        <div class="sidebar-cabecera">
+        <a href="#" onclick="switchTab('inicio'); return false;" class="marca-sgiu" aria-label="Empiria, ir al inicio">
+          <span class="marca-icono"><?!= include('Marca'); ?></span>
+          <span><strong translate="no">Empiria</strong><small>Gestión de investigación</small></span>
+        </a>
+        <button type="button" id="btn-toggle-sidebar" class="sidebar-toggle" onclick="toggleSidebar()" aria-controls="sidebar-trabajo" aria-expanded="true" aria-label="Contraer Espacio de Trabajo" title="Contraer Espacio de Trabajo">
+          <i id="icono-toggle-sidebar" class="fa-solid fa-angles-left" aria-hidden="true"></i>
+        </button>
+        </div>
+        <p class="etiqueta-menu">Espacio de trabajo</p>
+
+        
+<!-- INICIO: nav-menu -->
+        <nav class="space-y-2" id="nav-menu">
+          <button onclick="switchTab('inicio')" id="btn-inicio" aria-label="Inicio" title="Inicio" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+            <i class="fa-solid fa-house w-5 text-center"></i>
+            <span class="font-medium text-sm">Inicio</span>
+          </button>
+
+          <button onclick="switchTab('ciclo')" id="btn-ciclo" aria-label="Ciclo" title="Ciclo" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+            <i class="fa-solid fa-arrows-spin w-5 text-center"></i>
+            <span class="font-medium text-sm">Ciclo</span>
+          </button>
+
+          <button onclick="switchTab('clases')" id="btn-clases" aria-label="Clases" title="Clases" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+            <i class="fa-solid fa-chalkboard-user w-5 text-center"></i>
+            <span class="font-medium text-sm">Clases</span>
+          </button>
+
+          <button onclick="switchTab('plantillas')" id="btn-plantillas" aria-label="Plantillas" title="Plantillas" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+            <i class="fa-solid fa-file-excel w-5 text-center"></i>
+            <span class="font-medium text-sm">Plantillas</span>
+          </button>
+
+          <button onclick="switchTab('tareas')" id="btn-tareas" aria-label="Tareas" title="Tareas" aria-current="page" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl nav-activo font-semibold transition-all">
+            <i class="fa-solid fa-list-check w-5 text-center"></i>
+            <span class="text-sm">Tareas</span>
+          </button>
+
+          <button onclick="switchTab('reportes')" id="btn-reportes" aria-label="Reportes" title="Reportes" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-blue-700 transition-all">
+            <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+            <span class="font-medium text-sm">Reportes</span>
+          </button>
+        </nav>
+        
+<!-- FIN: nav-menu -->
+      </div>
+
+      <div class="perfil-sidebar p-4 border-t border-slate-200 text-center space-y-2">
+        <div class="perfil-usuario"><span class="avatar-usuario">DI</span><div><strong>Director Investigador</strong><small>Cuenta de demostración</small></div></div>
+        <button aria-label="Cerrar sesión" title="Cerrar sesión" onclick="cerrarSesion()" class="text-xs text-red-700 hover:text-red-200 flex items-center justify-center space-x-1.5 mx-auto py-1">
+          <i class="fa-solid fa-power-off"></i>
+          <span>Cerrar Sesión</span>
+        </button>
+        <p class="text-[10px] text-slate-500">Empiria · Plataforma de investigación</p>
+      </div>
+    </aside>
+    
+<!-- FIN: Navegación principal -->
+
+    
+<!-- INICIO: contenido-principal -->
+    <main tabindex="-1" id="contenido-principal" class="flex-1 flex flex-col overflow-y-auto">
+
+      
+<!-- INICIO: Cabecera -->
+      <header class="glass-header px-8 py-4 flex justify-between items-center sticky top-0 z-10">
+        <div class="encabezado-identidad"><div>
+          <h1 id="view-title" class="text-xl font-bold text-slate-900 tracking-wide">Módulo de Tareas</h1>
+          <p id="view-subtitle" class="text-xs text-slate-600">Gestión e integración con Google Classroom</p>
+        </div></div>
+
+        <div class="flex items-center gap-3">
+        <button id="btn-tema" type="button" class="boton-tema" onclick="alternarTema()" aria-pressed="false" aria-label="Activar modo oscuro" title="Activar modo oscuro">
+          <i id="icono-tema" class="fa-solid fa-moon" aria-hidden="true"></i>
+        </button>
+        <div class="relative">
+          <button id="btn-selector-ciclo" type="button" aria-controls="ciclo-dropdown" onclick="toggleCicloDropdown()" class="flex items-center space-x-3 glass-card hover:bg-slate-200 px-4 py-2 rounded-xl transition-all">
+            <i class="fa-solid fa-layer-group text-blue-700"></i>
+            <span class="text-xs font-semibold text-slate-600 uppercase">Ciclo:</span>
+            <span id="selected-ciclo-label" class="text-sm font-bold text-slate-900">Ciclo 2026-II</span>
+            <i class="fa-solid fa-chevron-down text-xs text-slate-600"></i>
+          </button>
+
+          <div id="ciclo-dropdown" class="hidden absolute right-0 mt-2 w-60 glass-card rounded-xl shadow-lg z-50 py-2 divide-y divide-slate-200">
+            <div class="px-4 py-2 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Ciclos Disponibles</div>
+            <div class="py-1">
+              <button type="button" data-ciclo="Ciclo 2026-II" aria-pressed="true" onclick="selectCiclo('Ciclo 2026-II', 'ACTIVO')" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center justify-between">
+                <span class="font-semibold text-slate-900">Ciclo 2026-II</span>
+                <span class="bg-emerald-500/20 border border-emerald-400/40 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">ACTIVO</span>
+              </button>
+              <button type="button" data-ciclo="Ciclo 2026-I" aria-pressed="false" onclick="selectCiclo('Ciclo 2026-I', 'CERRADO')" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center justify-between">
+                <span class="text-slate-600">Ciclo 2026-I</span>
+                <span class="bg-slate-500/20 border border-slate-400/30 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">CERRADO</span>
+              </button>
+              <button type="button" data-ciclo="Ciclo 2025-II" aria-pressed="false" onclick="selectCiclo('Ciclo 2025-II', 'CERRADO')" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center justify-between">
+                <span class="text-slate-600">Ciclo 2025-II</span>
+                <span class="bg-slate-500/20 border border-slate-400/30 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">CERRADO</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        </div>
+      </header>
+      
+<!-- FIN: Cabecera -->
+
+      <div class="contenido-modulos p-8 flex-1 flex flex-col max-w-6xl mx-auto w-full">
+
+        <?!= include('Tareas'); ?>
+
+        <?!= include('Plantillas'); ?>
+
+        <?!= include('Reportes'); ?>
+
+        <?!= include('Inicio'); ?>
+        <?!= include('Ciclo'); ?>
+        <?!= include('Clases'); ?>
+
+      </div>
+    </main>
+    
+<!-- FIN: contenido-principal -->
+  </div>
+  
+<!-- FIN: app-dashboard -->
+
+  <?!= include('CondicionesPrueba'); ?>
+  <?!= include('Scripts'); ?>
+  <?!= include('FlujosTareas'); ?>
+</body>
+</html>

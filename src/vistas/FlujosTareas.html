@@ -1,0 +1,348 @@
+<!-- MÓDULO: Flujos alternativos del módulo Tareas y control de transacciones (CU-002) -->
+<!-- Se incluye después de Scripts en Index y reutiliza su estado global (plantillas,        -->
+<!-- MAPEO_CLASES, cicloEstadoActual, temporizadorTarea). Los pasos referenciados            -->
+<!-- corresponden al flujo básico y a los flujos alternativos de GCC_Empiria_CU-002.          -->
+<script>
+  // INICIO: Modelo simulado del entorno de Google Classroom
+  // Datos deterministas del prototipo: el entorno de Classroom no se consulta en vivo,
+  // por lo que las validaciones previas se apoyan en este modelo. El ciclo activo
+  // 2026-II conserva su comportamiento del flujo básico.
+
+  // Fechas de fin de ciclo derivadas del tipo de semestre (supuesto de prototipo
+  // acordado para FA-010, paso 28): los ciclos I terminan el 30/06 y los II el 31/12.
+  var FIN_CICLO_SIMULADO = {
+    'Ciclo 2026-II': '2026-12-31',
+    'Ciclo 2026-I': '2026-06-30',
+    'Ciclo 2025-II': '2025-12-31'
+  };
+
+  // Lista de estudiantes por clase: en el prototipo las clases registradas tienen
+  // estudiantes; una clase no listada se trata como sin estudiantes asignados (FA-009).
+  var ESTUDIANTES_CLASE_SIMULADOS = {
+    'Investigadores 2026-II': ['Mariana Quispe', 'Jorge Ríos', 'Valeria Soto'],
+    'Investigadores 2026-I': ['Ana Torres', 'Renzo Paredes'],
+    'Investigadores 2025-II': ['Ana Torres', 'Renzo Paredes']
+  };
+
+  // Registro de tareas creadas en la sesión (sustituye la consulta a Classroom para FA-011).
+  var tareasRegistradasClassroom = [];
+
+  // Transacciones y auditoría del sistema (RN-002-05, RN-002-07).
+  var transaccionesEmpiria = [];
+  var auditoriaEmpiria = [];
+
+  // Identificador de la transacción en curso (En Proceso) en esta sesión.
+  var transaccionPublicacionId = null;
+
+  // Esperas progresivas para los reintentos por cuota excedida (FA-016).
+  var ESPERAS_REINTENTO_CLASSROOM = [600, 1800, 4200];
+  // FIN: Modelo simulado del entorno de Google Classroom
+
+  // INICIO: FA-010 (paso 28) y modelo de fechas de ciclo
+  function fechaFinCicloSimulada(ciclo) {
+    return FIN_CICLO_SIMULADO[ciclo] || null;
+  }
+
+  function excedeFinCicloEntrega(fechaStr, horaStr) {
+    var fin = fechaFinCicloSimulada(document.getElementById('input-ciclo-context').value);
+    if (!fin || !fechaStr) return false;
+    // El límite del ciclo se interpreta como el final del día de su fecha de fin.
+    var entrega = new Date(fechaStr + 'T' + (horaStr || '23:59'));
+    var limite = new Date(fin + 'T23:59');
+    return entrega > limite;
+  }
+  // FIN: FA-010 (paso 28) y modelo de fechas de ciclo
+
+  // INICIO: FA-005 a FA-009 · Validaciones previas al abrir el formulario (pasos 10 a 16)
+  // El modelo simulado se ajusta dinámicamente a las condiciones de prueba activas.
+  function claseCicloSimulada(ciclo) {
+    // FA-005: el ciclo puede carecer de clase de Classroom (Condición: FA-005).
+    if (typeof estaConPrueba === 'function' && estaConPrueba('sinClase')) return '';
+    return typeof MAPEO_CLASES !== 'undefined' && MAPEO_CLASES[ciclo] ? MAPEO_CLASES[ciclo] : '';
+  }
+
+  function estudiantesClaseSimulados(clase) {
+    // FA-009: la clase puede carecer de estudiantes asignados (Condición: FA-009).
+    if (typeof estaConPrueba === 'function' && estaConPrueba('sinEstudiantes')) return [];
+    return Object.prototype.hasOwnProperty.call(ESTUDIANTES_CLASE_SIMULADOS, clase) ? ESTUDIANTES_CLASE_SIMULADOS[clase] : null;
+  }
+
+  // Existencia en Drive simulada: la plantilla debe registrar un enlace de Google Sheets.
+  function urlPlantillaSimulada(plantilla) {
+    // FA-007: la plantilla puede no existir en Google Drive (Condición: FA-007).
+    if (typeof estaConPrueba === 'function' && estaConPrueba('archivoDrive')) return '';
+    return plantilla && typeof plantilla.urlSheets === 'string' && /^https:\/\/docs\.google\.com\//.test(plantilla.urlSheets) ? plantilla.urlSheets : '';
+  }
+
+  // Accesibilidad simulada para Classroom: una plantilla puede marcarse con
+  // listaParaClassroom: false para representar restricciones de acceso (FA-008).
+  function plantillaAccesibleClassroomSimulada(plantilla) {
+    // FA-008: la plantilla puede no ser accesible para Classroom (Condición: FA-008 de CU-002).
+    if (typeof estaConPrueba === 'function' && estaConPrueba('restringida')) return false;
+    if (!plantilla) return false;
+    return plantilla.listaParaClassroom === false ? false : true;
+  }
+
+  // Devuelve false y comunica el mensaje documentado si el ciclo no cumple las
+  // precondiciones del flujo básico. No altera el ciclo activo del prototipo.
+  function validarPrecondicionesTarea() {
+    var ciclo = document.getElementById('input-ciclo-context').value;
+
+    // FA-005 (paso 11): el ciclo debe tener clase de Classroom registrada.
+    var clase = claseCicloSimulada(ciclo);
+    if (!clase) {
+      alert('El ciclo seleccionado no tiene una clase de Google Classroom asociada. Configure la clase antes de continuar.');
+      return false;
+    }
+
+    // FA-006 (paso 12): el ciclo debe tener una plantilla asociada o asociable.
+    // En el prototipo la asociación ocurre al publicar (cicloAsociado), por lo que
+    // también cuentan las plantillas disponibles para el ciclo.
+    // Condición: FA-006, el ciclo puede carecer de plantilla base.
+    if (typeof estaConPrueba === 'function' && estaConPrueba('sinPlantilla')) {
+      alert('El ciclo seleccionado no tiene una plantilla base asociada. Configure una plantilla antes de continuar.');
+      return false;
+    }
+    var catalogo = typeof plantillas !== 'undefined' ? plantillas : [];
+    var asociable = catalogo.some(function(p) { return p.estado === 'disponible' || (p.estado === 'en_uso' && p.cicloAsociado === ciclo); });
+    if (!asociable) {
+      alert('El ciclo seleccionado no tiene una plantilla base asociada. Configure una plantilla antes de continuar.');
+      return false;
+    }
+
+    // FA-007 (paso 13) y FA-008 (paso 14): existencia y accesibilidad de la plantilla.
+    var plantilla = catalogo.filter(function(p) { return p.estado === 'disponible'; })[0] || catalogo[0];
+    if (!urlPlantillaSimulada(plantilla)) {
+      alert('La plantilla base asociada al ciclo no existe en Google Drive. Verifique el enlace del archivo.');
+      return false;
+    }
+    if (!plantillaAccesibleClassroomSimulada(plantilla)) {
+      alert('La plantilla base no es accesible para Google Classroom. Verifique los permisos del archivo en Google Drive.');
+      return false;
+    }
+
+    // FA-009 (paso 16): la clase debe tener al menos un estudiante asignado.
+    var estudiantes = estudiantesClaseSimulados(clase);
+    if (!Array.isArray(estudiantes) || !estudiantes.length) {
+      alert('La clase de Google Classroom del ciclo seleccionado no tiene estudiantes asignados. Asigne investigadores a la clase antes de continuar.');
+      return false;
+    }
+    return true;
+  }
+  // FIN: FA-005 a FA-009 · Validaciones previas al abrir el formulario
+
+  // INICIO: Transacciones y auditoría (pasos 34, 40, 41 · RN-002-05 y RN-002-07)
+  // ponytail: cuenta de demostración; al integrar, Session.getActiveUser().getEmail().
+  var RESPONSABLE_SESION = 'Director Investigador';
+
+  // Paso 41: marca temporal, ciclo, responsable e identificador de la tarea.
+  function registrarAuditoria(tipo, mensaje, ciclo, idTarea) {
+    auditoriaEmpiria.push({ tipo: tipo, mensaje: mensaje, ciclo: ciclo || '', responsable: RESPONSABLE_SESION, tarea: idTarea || null, fecha: new Date().toISOString() });
+  }
+
+  function iniciarTransaccion(ciclo, titulo, plantillaId) {
+    var transaccion = {
+      id: 'TX-' + Date.now() + '-' + (transaccionesEmpiria.length + 1),
+      ciclo: ciclo, titulo: titulo, plantilla: plantillaId,
+      estado: 'En Proceso', fechaInicio: new Date().toISOString()
+    };
+    transaccionesEmpiria.push(transaccion);
+    transaccionPublicacionId = transaccion.id;
+    return transaccion;
+  }
+
+  function finalizarTransaccion(id, estado, idTarea) {
+    var transaccion = transaccionesEmpiria.find(function(t) { return t.id === id; });
+    if (!transaccion) return null;
+    transaccion.estado = estado;
+    transaccion.fechaFin = new Date().toISOString();
+    if (idTarea) transaccion.idTarea = idTarea;
+    if (transaccionPublicacionId === id) transaccionPublicacionId = null;
+    return transaccion;
+  }
+
+  // FA-012 (paso 32): existe otra publicación en curso para el ciclo seleccionado.
+  function hayPublicacionEnCurso(ciclo) {
+    // Condición: FA-012, otra sesión mantiene una publicación en curso.
+    if (typeof estaConPrueba === 'function' && estaConPrueba('publicacionAjena')) return true;
+    return transaccionesEmpiria.some(function(t) { return t.estado === 'En Proceso' && t.ciclo === ciclo; });
+  }
+  // FIN: Transacciones y auditoría
+
+  // INICIO: FA-011 · Registro de tareas de la sesión y control de título duplicado
+  function existeTareaMismoNombre(ciclo, titulo) {
+    // Coincidencia exacta del nombre, igual que el control de Classroom.
+    return tareasRegistradasClassroom.some(function(t) { return t.ciclo === ciclo && t.titulo === titulo; });
+  }
+  // FIN: FA-011 · Título duplicado
+
+  // INICIO: FA-015 a FA-018 · Clasificación de errores y publicación con reintentos
+  function clasificarErrorClassroom(error) {
+    var texto = String((error && (error.message || String(error))) || '');
+    if (/PERMISOS|PERMISSION|FORBIDDEN|403/i.test(texto)) return { tipo: 'Permisos', mensaje: 'Error de permisos. Asegúrese de tener el rol de Profesor en la clase de Google Classroom.' };
+    if (/CUOTA|QUOTA|RATE|429|EXCEEDED/i.test(texto)) return { tipo: 'Cuota', mensaje: 'El servicio de Google Classroom no está disponible en este momento. Intente nuevamente en unos minutos.', reintentar: true };
+    if (/ADJUNTO|ATTACH|DRIVE/i.test(texto)) return { tipo: 'Adjunto', mensaje: 'No se pudo adjuntar la plantilla base a la tarea. Verifique los permisos del archivo e intente nuevamente.' };
+    return { tipo: 'Conexión', mensaje: 'Error de conexión con los servicios de Google. Verifique su conexión e intente nuevamente.' };
+  }
+
+  // Simulación de la API de Classroom: responde con el fallo elegido en el panel de
+  // condiciones (FA-015 a FA-018). Punto de integración: sustituir estas dos funciones
+  // por las llamadas reales; la clasificación de errores y los reintentos ya están cableados.
+  function comportamientoClassroom() {
+    return typeof condicionComportamientoClassroom === 'function' ? condicionComportamientoClassroom() : 'correcto';
+  }
+
+  // Paso 35: crea la tarea con título, descripción y fecha/hora de entrega.
+  function crearTareaClassroom(datos) {
+    var comportamiento = comportamientoClassroom();
+    if (comportamiento === 'sinPermisos') throw new Error('PERMISOS: el usuario no tiene el rol de Profesor en la clase (403)');
+    if (comportamiento === 'cuota') throw new Error('CUOTA: Resource_Exhausted, cuota de peticiones excedida (429)');
+    if (comportamiento === 'sinConexion') throw new Error('CONEXION: no se recibió respuesta del servicio de Classroom');
+    return 'CR-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+  }
+
+  // Pasos 36 y 37: adjunta la plantilla en modo de trabajo individual y publica.
+  function adjuntarYPublicarClassroom(idTarea, datos) {
+    if (comportamientoClassroom() === 'adjunto') throw new Error('ADJUNTO: DriveApp no pudo adjuntar el archivo de la plantilla');
+  }
+
+  // Pasos 35 a 38. El identificador se guarda al crear la tarea para poder revertirla
+  // si el adjunto falla (FA-017) o el Director cancela (FA-014).
+  function ejecutarPasosPublicacion(transaccion, datos) {
+    transaccion.idTarea = crearTareaClassroom(datos);
+    adjuntarYPublicarClassroom(transaccion.idTarea, datos);
+  }
+
+  // Comunicación del fallo (FA-015, FA-017, FA-018): auditoría, reversión de la tarea
+  // parcial, transacción Fallido, botón habilitado y mensaje documentado.
+  function fallerTransaccion(clasificado, transaccion, datos) {
+    registrarAuditoria(clasificado.tipo, clasificado.mensaje, datos.ciclo, transaccion.idTarea || null);
+    // FA-017 paso 3: la tarea creada sin adjunto se elimina de Classroom.
+    if (transaccion.idTarea) {
+      registrarAuditoria('Reversión', 'Se eliminó la tarea parcial ' + transaccion.idTarea + ' de Classroom.', datos.ciclo, transaccion.idTarea);
+      transaccion.idTarea = null;
+    }
+    finalizarTransaccion(transaccion.id, 'Fallido');
+    if (typeof resetearBotonCrear === 'function') resetearBotonCrear();
+    // FA-018 pasos 6 y 7: «Reintentar» regresa al paso 32 con los mismos datos.
+    if (clasificado.tipo === 'Conexión' && typeof avisoSistema === 'function') {
+      avisoSistema(clasificado.mensaje, 'Reintentar', function() { iniciarPublicacion(datos); });
+      return;
+    }
+    alert(clasificado.mensaje);
+  }
+
+  function procesarPublicacion(transaccion, datos) {
+    // La transacción pudo cancelarse (FA-014) mientras esperaba un reintento.
+    if (transaccion.estado !== 'En Proceso') return;
+    try {
+      // FA-019 (pasos 32 a 39): la sesión puede expirar durante el procesamiento.
+      // La transacción queda Fallido, se cierra la sesión y se solicita autenticarse.
+      if (typeof consumirPrueba === 'function' && consumirPrueba('sesionProceso')) {
+        finalizarTransaccion(transaccion.id, 'Fallido');
+        registrarAuditoria('Sesión', 'La sesión expiró mientras se procesaba la publicación en ' + datos.ciclo + '. No se creó la tarea.', datos.ciclo);
+        if (typeof resetearBotonCrear === 'function') resetearBotonCrear();
+        cerrarSesion();
+        if (typeof avisoSistema === 'function') {
+          avisoSistema('Su sesión ha expirado. Inicie sesión nuevamente para continuar.', 'Iniciar sesión', function() { iniciarSesion('tareas'); });
+        } else {
+          alert('Su sesión ha expirado. Inicie sesión nuevamente para continuar.');
+        }
+        return;
+      }
+      ejecutarPasosPublicacion(transaccion, datos);
+      completarPublicacionTransaccion(transaccion, datos);
+    } catch (error) {
+      var clasificado = clasificarErrorClassroom(error);
+      // FA-016: hasta tres reintentos con espera progresiva ante cuota excedida.
+      if (clasificado.reintentar && (transaccion.intentos || 0) < 3) {
+        transaccion.intentos = (transaccion.intentos || 0) + 1;
+        registrarAuditoria('Cuota', 'Reintento ' + transaccion.intentos + ' de 3 por cuota excedida en las APIs de Google.', datos.ciclo, transaccion.idTarea || null);
+        temporizadorTarea = setTimeout(function() { procesarPublicacion(transaccion, datos); }, ESPERAS_REINTENTO_CLASSROOM[transaccion.intentos - 1]);
+        return;
+      }
+      fallerTransaccion(clasificado, transaccion, datos);
+    }
+  }
+  // FIN: FA-015 a FA-018 · Clasificación de errores y publicación con reintentos
+
+  // INICIO: Confirmación de la publicación (pasos 39 a 45 del flujo básico)
+  // Consolida la lógica de éxito previa del módulo Tareas.
+  function completarPublicacionTransaccion(transaccion, datos) {
+    var plantillaUsada = plantillas.find(function(p) { return p.id === datos.plantillaId; });
+    if (plantillaUsada) {
+      plantillaUsada.estado = 'en_uso';
+      plantillaUsada.cicloAsociado = datos.ciclo;
+    }
+    // RN-002-09: la tarea queda asociada al ciclo y a la plantilla seleccionada.
+    tareasRegistradasClassroom.push({ ciclo: datos.ciclo, clase: claseCicloSimulada(datos.ciclo), titulo: datos.titulo, idTarea: transaccion.idTarea, plantilla: datos.plantillaId });
+    finalizarTransaccion(transaccion.id, 'Completado', transaccion.idTarea); // paso 40
+    registrarAuditoria('Publicación', 'Tarea "' + datos.titulo + '" publicada en Classroom para ' + datos.ciclo + '.', datos.ciclo, transaccion.idTarea); // paso 41
+
+    // Paso 42; el formulario se limpia y oculta al pulsar «Aceptar» (paso 45).
+    document.getElementById('mensaje-exito-detalle').innerText = 'La tarea “' + datos.titulo + '” ha sido registrada correctamente en Classroom.';
+    document.getElementById('modal-exito').classList.remove('hidden');
+    if (typeof setBotonCreando === 'function') setBotonCreando(false);
+    if (typeof renderizarPlantillas === 'function') renderizarPlantillas();
+    if (typeof actualizarSelectPlantillas === 'function') actualizarSelectPlantillas();
+  }
+  // FIN: Confirmación de la publicación
+
+  // INICIO: FA-014 · Cancelación de la publicación en curso
+  // Detiene la publicación activa, revierte la tarea parcial si existiera y deja
+  // la transacción en estado Cancelado (pasos 2 a 7).
+  function marcarCancelacionPublicacion() {
+    if (transaccionPublicacionId == null) return;
+    clearTimeout(temporizadorTarea);
+    var transaccion = transaccionesEmpiria.find(function(t) { return t.id === transaccionPublicacionId; });
+    if (transaccion && transaccion.idTarea) {
+      tareasRegistradasClassroom = tareasRegistradasClassroom.filter(function(t) { return t.idTarea !== transaccion.idTarea; });
+      registrarAuditoria('Cancelación', 'Se eliminó la tarea parcial ' + transaccion.idTarea + ' de Classroom tras cancelar.', transaccion.ciclo, transaccion.idTarea);
+    }
+    finalizarTransaccion(transaccionPublicacionId, 'Cancelado');
+  }
+
+  function cancelarPublicacionEnCurso() {
+    if (transaccionPublicacionId == null) return;
+    var ciclo = transaccionesEmpiria.find(function(t) { return t.id === transaccionPublicacionId; }).ciclo;
+    marcarCancelacionPublicacion();
+    if (typeof resetearBotonCrear === 'function') resetearBotonCrear();
+    registrarAuditoria('Cancelación', 'Publicación cancelada por el Director en ' + ciclo + '.', ciclo);
+    alert('Publicación cancelada. No se generaron cambios en Google Classroom.');
+    if (typeof cancelarFormulario === 'function') cancelarFormulario();
+  }
+
+  // Estado del botón secundario durante la publicación (paso 33 del flujo básico).
+  function actualizarControlCancelarPublicacion(creando) {
+    var boton = document.getElementById('btn-cancelar-publicacion');
+    if (boton) boton.classList.toggle('hidden', !creando);
+  }
+  // FIN: FA-014 · Cancelación de la publicación en curso
+
+  // INICIO: RN-002-08 · Cancelación del formulario antes de publicar (FA-013)
+  // La cancelación del formulario durante una publicación activa deja la transacción
+  // en Cancelado, sin mostrar mensajes adicionales al FA-014.
+  function marcarCancelacionFormulario() {
+    if (transaccionPublicacionId == null) return;
+    marcarCancelacionPublicacion();
+  }
+  // FIN: RN-002-08 · Cancelación del formulario antes de publicar
+
+  // INICIO: FA-020 · Rescate de transacciones colgadas al iniciar sesión
+  // Una transacción en En Proceso con más de treinta minutos se marca como Fallido,
+  // se registra el incidente en auditoría y la sesión continúa con normalidad.
+  function rescatarTransaccionesColgadas() {
+    var ahora = Date.now();
+    transaccionesEmpiria.forEach(function(transaccion) {
+      if (transaccion.estado !== 'En Proceso') return;
+      var antiguedad = ahora - new Date(transaccion.fechaInicio).getTime();
+      if (antiguedad > 30 * 60 * 1000) {
+        transaccion.estado = 'Fallido';
+        transaccion.fechaFin = new Date().toISOString();
+        registrarAuditoria('Transacción Colgada', 'La transacción ' + transaccion.id + ' superó los treinta minutos en En Proceso y se marcó como Fallido.', transaccion.ciclo, transaccion.idTarea || null);
+        if (transaccionPublicacionId === transaccion.id) transaccionPublicacionId = null;
+      }
+    });
+  }
+  // FIN: FA-020 · Rescate de transacciones colgadas
+</script>

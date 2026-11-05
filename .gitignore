@@ -1,0 +1,17 @@
+# Credenciales y configuración local
+.env
+.env.*
+!.env.example
+.aws/
+.codex/
+.clasprc.json
+.clasp.json
+*credentials*.json
+
+# Archivos generados y cachés
+graphify-out/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+*.log

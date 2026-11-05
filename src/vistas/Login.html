@@ -1,0 +1,39 @@
+  <!-- 1. PANTALLA DE LOGIN -->
+  
+<!-- INICIO: view-login -->
+  <div id="view-login" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md">
+    <div class="glass-card rounded-2xl p-8 max-w-md w-full text-center space-y-6 fade-in border border-slate-200 shadow-lg">
+      <div class="w-20 h-20 mx-auto bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center ">
+        <?!= include('Marca'); ?>
+      </div>
+      
+      <div>
+        <h1 class="marca-editorial" translate="no">Empiria</h1>
+        <p class="text-xs text-slate-600 mt-1">Gestión de Tareas e Investigación</p>
+      </div>
+
+      <div class="space-y-5 pt-2">
+        <div class="space-y-2">
+          <h2 class="text-lg font-bold text-slate-900">Iniciar sesión</h2>
+          <p class="text-sm text-slate-600">Accede con tu cuenta de Google para continuar a la plataforma.</p>
+        </div>
+
+        <button type="button" onclick="iniciarSesion()" class="w-full bg-white hover:bg-slate-100 text-slate-700 font-semibold py-3.5 px-5 rounded-xl border border-slate-200 shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white">
+          
+<!-- INICIO: Marca gráfica Empiria -->
+          <svg class="w-5 h-5 shrink-0" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+            <path fill="#4285F4" d="M43.61 24.46c0-1.36-.12-2.66-.35-3.92H24v7.42h11a9.4 9.4 0 0 1-4.08 6.18v5.14h6.61c3.87-3.56 6.08-8.81 6.08-14.82z"/>
+            <path fill="#34A853" d="M24 44c5.51 0 10.13-1.83 13.51-4.97l-6.61-5.14c-1.83 1.23-4.18 1.97-6.9 1.97-5.32 0-9.84-3.59-11.46-8.42H5.72v5.3A20.4 20.4 0 0 0 24 44z"/>
+            <path fill="#FBBC05" d="M12.54 27.44A12.2 12.2 0 0 1 11.9 24c0-1.2.22-2.36.64-3.44v-5.3H5.72A20 20 0 0 0 3.6 24c0 3.22.77 6.27 2.12 8.74z"/>
+            <path fill="#EA4335" d="M24 12.14c3 0 5.68 1.03 7.8 3.05l5.85-5.85C34.11 6.04 29.51 4 24 4A20.4 20.4 0 0 0 5.72 15.26l6.82 5.3C14.16 15.73 18.68 12.14 24 12.14z"/>
+          </svg>
+          
+<!-- FIN: Marca gráfica Empiria -->
+          <span>Continuar con Google</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+  
+<!-- FIN: view-login -->

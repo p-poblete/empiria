@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "data-visualization": {
+      "source": "fefogarcia/approved-skills",
+      "sourceType": "github",
+      "skillPath": "skills/data-visualization/SKILL.md",
+      "computedHash": "83837259339e1349893fce8b3898e6753e4707c3660233e7ee52a41a9129fdd9"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "89496d5dd00f4810205f351759594fc2742bf8eea85a2f2b2d1de59f4bd91576"
+    },
+    "ui-ux-pro-max": {
+      "source": "terminalskills/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "baf1f2c9ae9a1312ebb77293544e69b36f8b2fd67ad88e1aaa74429e6b28d10a"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    }
+  }
+}

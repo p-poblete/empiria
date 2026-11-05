@@ -1,0 +1,3 @@
+REportes
+- Corregir Formato de descarga de los reportes, revisa a profundidad como se ven en principalmente formato pdf, que no se salgan de sus marcos y respeten la tabla. si es necesario para conservar el tamaño de la hoja, partamos la tabla y que continue en la parte de abajo. 
+- Separar con aun mas especificidad las selecciones para mandar en la descarga de reporte, no solo las secciones, especificamos elementos dentro de la seccion

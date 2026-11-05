@@ -1,0 +1,315 @@
+
+<!-- INICIO: reporte-investigador -->
+<section aria-labelledby="tab-reporte-investigador" class="investigador-reporte space-y-6" id="reporte-investigador" role="tabpanel">
+<!-- INICIO: investigador-dialogo-generales -->
+<dialog aria-labelledby="inv-titulo-filtros-generales" class="inv-dialogo-filtros" id="inv-dialogo-generales">
+<div class="reporte-seccion">
+<h3 id="inv-titulo-filtros-generales">Filtros generales</h3>
+<button aria-label="Cerrar filtros" class="inv-cerrar-filtros" onclick="document.getElementById('inv-dialogo-generales').close()" type="button">Cerrar</button>
+</div>
+
+<fieldset class="inv-grupo-filtros">
+<legend>Perfil académico y RENACYT</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Carrera profesional</span><select id="inv-filtro-carrera" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Línea de investigación</span><select id="inv-filtro-linea" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Grupo RENACYT</span><select id="inv-filtro-grupoRenacyt" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Nivel RENACYT</span><select id="inv-filtro-nivel" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Investigador (nombre o ID)</span><select id="select-investigador" onchange="cargarDatosInvestigador()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Dedicación y disponibilidad</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Categoría docente</span><select id="inv-filtro-categoria" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Tipo de dedicación</span><select id="inv-filtro-dedicacion" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Disponibilidad semanal</span><select id="inv-filtro-dia" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Pertenencia</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Grupo de investigación</span><select id="inv-filtro-grupo" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Semillero</span><select id="inv-filtro-semillero" onchange="filtrarInvestigadoresReporte()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Periodo de consulta</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Ciclo académico</span><select id="inv-ciclo" onchange="sincronizarCicloInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Periodo</span><select id="inv-periodo" onchange="actualizarReporteInvestigador()"><option value="semestre">Semestre</option><option value="año">Año</option></select></label>
+</div>
+</fieldset>
+<div class="inv-acciones-descarga"><button class="boton-primario" onclick="document.getElementById('inv-dialogo-generales').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: investigador-dialogo-generales -->
+<!-- INICIO: investigador-seccion-estadisticas -->
+<section aria-labelledby="inv-titulo-estadisticas" class="glass-card inv-panel inv-barra-estadisticas" id="inv-seccion-estadisticas">
+<h3 id="inv-titulo-estadisticas">Estadísticas</h3>
+<div aria-live="polite" id="inv-estadisticas"></div>
+</section>
+<!-- FIN: investigador-seccion-estadisticas -->
+<div class="investigador-cabecera-grid">
+<!-- INICIO: investigador-seccion-dedicacion -->
+<aside aria-labelledby="inv-titulo-dedicacion" class="glass-card investigador-disponibilidad" id="inv-seccion-dedicacion">
+<div>
+<h3 id="inv-titulo-dedicacion">Dedicación</h3>
+
+<div aria-label="Días de dedicación registrados" class="reporte-dias" id="inv-dias"></div>
+</div>
+<dl class="investigador-datos-laterales">
+<div>
+<dt>Dedicación actual</dt>
+<dd id="inv-dedicacion">—</dd>
+</div>
+<div>
+<dt>Categoría</dt>
+<dd id="inv-categoria">—</dd>
+</div>
+</dl>
+</aside>
+<!-- FIN: investigador-seccion-dedicacion -->
+<!-- INICIO: investigador-seccion-ficha -->
+<section aria-labelledby="inv-titulo-ficha" class="glass-card investigador-identidad" id="inv-seccion-ficha">
+<h3 class="sr-only" id="inv-titulo-ficha">Perfil académico del investigador</h3>
+<div class="inv-perfil-cabecera">
+<i aria-hidden="true" class="fa-regular fa-user inv-perfil-icono"></i>
+<div class="inv-perfil-identidad">
+<p class="investigador-nombre" id="inv-nombre">—</p>
+<p class="inv-perfil-subtitulo"><span id="inv-carrera">—</span><span aria-hidden="true"> · </span><span id="inv-categoria-perfil">—</span></p>
+<div class="investigador-nivel" data-nivel="sin-clasificacion" id="inv-clasificacion"><span>RENACYT — </span><span id="inv-renacyt-nivel">—</span></div>
+</div>
+</div>
+<div class="investigador-datos-grid">
+<div class="investigador-dato"><span class="reporte-etiqueta">DNI</span><p id="inv-dni">—</p></div>
+<div class="investigador-dato"><span class="reporte-etiqueta">Correo</span><p id="inv-correo">—</p></div>
+<div class="investigador-dato"><span class="reporte-etiqueta">Código RENACYT</span><p id="inv-renacyt-codigo">—</p></div>
+<div class="investigador-dato"><span class="reporte-etiqueta">Grupo RENACYT</span><p id="inv-renacyt-grupo">—</p></div>
+</div>
+<div class="inv-perfil-lineas"><span class="reporte-etiqueta">Líneas de investigación</span><div class="investigador-lineas"><p id="inv-linea1">—</p><p id="inv-linea2">—</p></div></div>
+<a class="investigador-enlace-cti" id="inv-ctivitae" rel="noopener noreferrer" target="_blank">Consultar CTI Vitae ↗</a>
+</section>
+<!-- FIN: investigador-seccion-ficha -->
+<!-- INICIO: Gráficos del investigador -->
+<section aria-label="Gráficos del investigador" class="glass-card investigador-analisis space-y-4" id="inv-seccion-graficos">
+<!-- INICIO: Bloque de contenido -->
+<section><h4>Promedio de calidad</h4><div id="inv-grafico-calidad"></div></section>
+<!-- FIN: Bloque de contenido -->
+<!-- INICIO: Bloque de contenido -->
+<section><h4>Proyectos</h4><div id="inv-grafico-proyectos"></div></section>
+<!-- FIN: Bloque de contenido -->
+</section>
+<!-- FIN: Gráficos del investigador -->
+</div>
+<div class="investigador-produccion-grid">
+<!-- INICIO: investigador-seccion-publicaciones -->
+<section aria-labelledby="inv-titulo-publicaciones" class="glass-card investigador-publicaciones space-y-4" id="inv-seccion-publicaciones">
+<div class="investigador-titulo-publicaciones inv-cabecera-seccion">
+<div>
+<h3 id="inv-titulo-publicaciones">Publicaciones</h3>
+
+</div>
+<button aria-controls="inv-dialogo-publicaciones" aria-haspopup="dialog" aria-label="Filtros de publicaciones" class="inv-boton-filtros inv-filtro-compacto" onclick="abrirFiltrosInvestigador('publicaciones')" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i> Filtros</button>
+</div>
+<!-- INICIO: investigador-dialogo-publicaciones -->
+<dialog aria-labelledby="inv-titulo-filtros-publicaciones" class="inv-dialogo-filtros" id="inv-dialogo-publicaciones">
+<div class="reporte-seccion">
+<h3 id="inv-titulo-filtros-publicaciones">Filtros de publicaciones</h3>
+<button aria-label="Cerrar filtros" class="inv-cerrar-filtros" onclick="document.getElementById('inv-dialogo-publicaciones').close()" type="button">Cerrar</button>
+</div>
+
+<fieldset class="inv-grupo-filtros">
+<legend>Clasificación y publicación</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Tipo</span><select id="inv-pub-tipo" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Estado de publicación</span><select id="inv-pub-estado" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Indexación</span><select id="inv-pub-indexacion" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Cuartil</span><select id="inv-pub-cuartil" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Ranking de conferencia</span><select id="inv-pub-ranking" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Impacto</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>H-index mínimo</span><input id="inv-pub-min" min="0" oninput="actualizarReporteInvestigador()" type="number"/></label>
+<label class="reporte-campo"><span>H-index máximo</span><input id="inv-pub-max" min="0" oninput="actualizarReporteInvestigador()" type="number"/></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Ubicación y evidencia</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>País o ciudad</span><select id="inv-pub-lugar" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Evidencia</span><select id="inv-pub-evidencia" onchange="actualizarReporteInvestigador()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Ordenamiento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-pub-orden" onchange="actualizarReporteInvestigador()"><option value="fecha">Fecha</option><option value="impacto">Impacto</option><option value="cuartil">Cuartil</option></select></label>
+</div>
+</fieldset>
+<div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('publicaciones')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('inv-dialogo-publicaciones').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: investigador-dialogo-publicaciones -->
+<div class="inv-herramientas">
+<label class="inv-buscador" for="inv-buscar-publicaciones"><span class="sr-only">Buscar publicaciones por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="inv-buscar-publicaciones" oninput="buscarColeccionInv('publicaciones', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
+<label class="inv-tamano" for="inv-tamano-publicaciones">Mostrar<select id="inv-tamano-publicaciones" onchange="tamanoColeccionInv('publicaciones', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<button aria-label="Exportar publicaciones filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('publicaciones')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
+</div>
+<p aria-live="polite" class="reporte-nota inv-contador-coleccion" id="inv-contador-publicaciones" role="status"></p>
+<div aria-label="Publicaciones del investigador, tabla con desplazamiento horizontal" class="reporte-tabla" id="inv-publicaciones" role="region" tabindex="0"><table><tbody id="tabla-publicaciones-body"></tbody></table></div>
+<div class="inv-pie-coleccion" id="inv-pie-publicaciones"></div>
+</section>
+<!-- FIN: investigador-seccion-publicaciones -->
+<!-- INICIO: investigador-seccion-proyectos -->
+<section aria-labelledby="inv-titulo-proyectos" class="glass-card investigador-proyectos space-y-4" id="inv-seccion-proyectos">
+<div class="inv-cabecera-seccion">
+<h3 id="inv-titulo-proyectos">Proyectos</h3>
+<button aria-controls="inv-dialogo-proyectos" aria-haspopup="dialog" aria-label="Filtros de proyectos" class="inv-boton-filtros inv-filtro-compacto" onclick="abrirFiltrosInvestigador('proyectos')" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i> Filtros</button>
+</div>
+<!-- INICIO: investigador-dialogo-proyectos -->
+<dialog aria-labelledby="inv-titulo-filtros-proyectos" class="inv-dialogo-filtros" id="inv-dialogo-proyectos">
+<div class="reporte-seccion">
+<h3 id="inv-titulo-filtros-proyectos">Filtros de proyectos</h3>
+<button aria-label="Cerrar filtros" class="inv-cerrar-filtros" onclick="document.getElementById('inv-dialogo-proyectos').close()" type="button">Cerrar</button>
+</div>
+
+<fieldset class="inv-grupo-filtros">
+<legend>Características del proyecto</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Financiamiento</span><select id="inv-pro-financiamiento" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Estado</span><select id="inv-pro-estado" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Tipo de proyecto</span><select id="inv-pro-tipoProyecto" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Área temática</span><select id="inv-pro-area" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Participación y financiamiento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Rol del investigador</span><select id="inv-pro-rol" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Entidad financiadora</span><select id="inv-pro-financiador" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Presupuesto mínimo</span><input id="inv-pro-min" min="0" oninput="actualizarReporteInvestigador()" type="number"/></label>
+<label class="reporte-campo"><span>Presupuesto máximo</span><input id="inv-pro-max" min="0" oninput="actualizarReporteInvestigador()" type="number"/></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Evidencia y ordenamiento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Evidencia</span><select id="inv-pro-evidencia" onchange="actualizarReporteInvestigador()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
+<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-pro-orden" onchange="actualizarReporteInvestigador()"><option value="fecha">Fecha</option><option value="presupuesto">Presupuesto</option><option value="avance">Avance</option></select></label>
+</div>
+</fieldset>
+<div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('proyectos')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('inv-dialogo-proyectos').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: investigador-dialogo-proyectos -->
+<div class="inv-herramientas">
+<label class="inv-buscador" for="inv-buscar-proyectos"><span class="sr-only">Buscar proyectos por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="inv-buscar-proyectos" oninput="buscarColeccionInv('proyectos', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
+<label class="inv-tamano" for="inv-tamano-proyectos"><span class="sr-only">Registros por página</span><select id="inv-tamano-proyectos" onchange="tamanoColeccionInv('proyectos', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<button aria-label="Exportar proyectos filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('proyectos')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
+<button onclick="abrirColeccionInv('proyectos')" type="button">Ver tabla</button>
+</div>
+<p aria-live="polite" class="reporte-nota inv-contador-coleccion" id="inv-contador-proyectos" role="status"></p>
+<div class="reporte-listado" id="inv-proyectos"></div>
+<div class="inv-pie-coleccion" id="inv-pie-proyectos"></div>
+</section>
+<!-- FIN: investigador-seccion-proyectos -->
+<!-- INICIO: investigador-seccion-eventos -->
+<section aria-labelledby="inv-titulo-eventos" class="glass-card investigador-eventos space-y-4" id="inv-seccion-eventos">
+<div class="inv-cabecera-seccion">
+<h3 id="inv-titulo-eventos">Eventos</h3>
+<button aria-controls="inv-dialogo-eventos" aria-haspopup="dialog" aria-label="Filtros de eventos" class="inv-boton-filtros inv-filtro-compacto" onclick="abrirFiltrosInvestigador('eventos')" type="button"><i aria-hidden="true" class="fa-solid fa-sliders"></i> Filtros</button>
+</div>
+<!-- INICIO: investigador-dialogo-eventos -->
+<dialog aria-labelledby="inv-titulo-filtros-eventos" class="inv-dialogo-filtros" id="inv-dialogo-eventos">
+<div class="reporte-seccion">
+<h3 id="inv-titulo-filtros-eventos">Filtros de eventos</h3>
+<button aria-label="Cerrar filtros" class="inv-cerrar-filtros" onclick="document.getElementById('inv-dialogo-eventos').close()" type="button">Cerrar</button>
+</div>
+
+<fieldset class="inv-grupo-filtros">
+<legend>Características del evento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Estado</span><select id="inv-eve-estado" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Tipo de evento</span><select id="inv-eve-tipo" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>Modalidad</span><select id="inv-eve-modalidad" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Participación y ubicación</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Rol</span><select id="inv-eve-rol" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+<label class="reporte-campo"><span>País o ciudad</span><select id="inv-eve-lugar" onchange="actualizarReporteInvestigador()"><option value="">Todos</option></select></label>
+</div>
+</fieldset>
+<fieldset class="inv-grupo-filtros">
+<legend>Evidencia y ordenamiento</legend>
+<div class="inv-filtros">
+<label class="reporte-campo"><span>Evidencia</span><select id="inv-eve-evidencia" onchange="actualizarReporteInvestigador()"><option value="">Todos</option><option value="si">Con evidencia</option><option value="no">Sin evidencia</option></select></label>
+<label class="reporte-campo"><span>Ordenamiento</span><select id="inv-eve-orden" onchange="actualizarReporteInvestigador()"><option value="fecha">Fecha</option></select></label>
+</div>
+</fieldset>
+<div class="inv-acciones-descarga"><button class="filtro-pill" onclick="restablecerFiltrosColeccion('eventos')" type="button">Restablecer</button><button class="boton-primario" onclick="document.getElementById('inv-dialogo-eventos').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: investigador-dialogo-eventos -->
+<div class="inv-herramientas">
+<label class="inv-buscador" for="inv-buscar-eventos"><span class="sr-only">Buscar eventos por título, código o nombre</span><i aria-hidden="true" class="fa-solid fa-magnifying-glass"></i><input id="inv-buscar-eventos" oninput="buscarColeccionInv('eventos', this.value)" placeholder="Buscar por título, código o nombre…" type="search"/></label>
+<label class="inv-tamano" for="inv-tamano-eventos"><span class="sr-only">Registros por página</span><select id="inv-tamano-eventos" onchange="tamanoColeccionInv('eventos', this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option></select></label>
+<button aria-label="Exportar eventos filtrados a CSV" class="inv-exportar-csv" onclick="exportarColeccionInv('eventos')" type="button">CSV <i aria-hidden="true" class="fa-solid fa-download"></i></button>
+<button onclick="abrirColeccionInv('eventos')" type="button">Ver tabla</button>
+</div>
+<p aria-live="polite" class="reporte-nota inv-contador-coleccion" id="inv-contador-eventos" role="status"></p>
+<div class="reporte-listado" id="inv-eventos"></div>
+<div class="inv-pie-coleccion" id="inv-pie-eventos"></div>
+</section>
+<!-- FIN: investigador-seccion-eventos -->
+</div>
+</section>
+<!-- FIN: reporte-investigador -->
+<!-- INICIO: investigador-dialogo-descarga -->
+<dialog aria-labelledby="inv-descarga-titulo" id="inv-dialogo-descarga">
+<!-- INICIO: Formulario -->
+<form onsubmit="descargarReporteInvestigador(event)">
+<h3 id="inv-descarga-titulo">Descargar reporte del investigador</h3>
+
+<fieldset class="inv-opciones-descarga">
+<legend>Secciones a incluir</legend>
+<label><input checked="" name="seccion-reporte" type="checkbox" value="dedicacion"/> Dedicación</label>
+<label><input checked="" name="seccion-reporte" type="checkbox" value="ficha"/> Ficha del investigador</label>
+<label><input checked="" name="seccion-reporte" type="checkbox" value="estadisticas"/> Estadísticas</label>
+<label><input checked="" name="seccion-reporte" type="checkbox" value="graficos"/> Gráficos</label>
+<label><input checked="" name="seccion-reporte" type="checkbox" value="publicaciones"/> Publicaciones</label>
+<label><input checked="" name="seccion-reporte" type="checkbox" value="proyectos"/> Proyectos</label>
+<label><input checked="" name="seccion-reporte" type="checkbox" value="eventos"/> Eventos</label>
+</fieldset>
+<label class="reporte-campo" for="inv-formato-descarga"><span>Formato</span>
+<select id="inv-formato-descarga">
+<option value="html">HTML (reporte visual)</option>
+<option value="csv">CSV (datos y métricas)</option>
+<option value="json">JSON (datos estructurados)</option>
+<option value="pdf">PDF (imprimir / guardar como PDF)</option>
+</select>
+</label>
+<p aria-live="polite" class="reporte-nota" id="inv-descarga-estado" role="status"></p>
+<div class="inv-acciones-descarga">
+<button class="filtro-pill" onclick="document.getElementById('inv-dialogo-descarga').close()" type="button">Cancelar</button>
+<button class="boton-primario" type="submit">Generar reporte</button>
+</div>
+</form>
+<!-- FIN: Formulario -->
+</dialog>
+<!-- FIN: investigador-dialogo-descarga -->
+<!-- INICIO: reporte-dialogo-detalle -->
+<dialog aria-labelledby="reporte-detalle-titulo" class="inv-dialogo-filtros" id="reporte-dialogo-detalle">
+<div class="reporte-seccion"><h3 id="reporte-detalle-titulo"></h3><button class="inv-cerrar-filtros" onclick="document.getElementById('reporte-dialogo-detalle').close()" type="button">Cerrar</button></div>
+<div class="reporte-detalle" id="reporte-detalle-contenido"></div>
+</dialog>
+<!-- FIN: reporte-dialogo-detalle -->
+<!-- INICIO: investigador-dialogo-columna -->
+<dialog aria-labelledby="inv-columna-titulo" class="inv-dialogo-filtros" id="inv-dialogo-columna">
+<div class="reporte-seccion"><h3 id="inv-columna-titulo">Filtrar columna</h3><button class="inv-cerrar-filtros" onclick="document.getElementById('inv-dialogo-columna').close()" type="button">Cerrar</button></div>
+
+<fieldset class="inv-opciones-columna" id="inv-columna-opciones"></fieldset>
+<div class="inv-acciones-descarga"><button onclick="limpiarFiltroCabeceraInv()" type="button">Mostrar todos</button><button class="boton-primario" onclick="document.getElementById('inv-dialogo-columna').close()" type="button">Listo</button></div>
+</dialog>
+<!-- FIN: investigador-dialogo-columna -->
+

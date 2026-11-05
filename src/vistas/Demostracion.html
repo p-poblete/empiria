@@ -1,0 +1,16 @@
+<!-- Controles de demostración: disponibles también desde el inicio de sesión. -->
+<button id="btn-demostracion" class="demo-tuerquita" type="button" onclick="abrirDemostracion()" aria-label="Escenarios de demostración" title="Escenarios de demostración" aria-haspopup="dialog" aria-controls="demo-panel"><i class="fa-solid fa-gear" aria-hidden="true"></i></button>
+<dialog id="demo-panel" class="demo-dialogo" aria-labelledby="demo-titulo">
+  <div class="demo-cabecera"><h2 id="demo-titulo">Escenarios de demostración</h2><button type="button" class="filtro-pill" onclick="document.getElementById('demo-panel').close()" aria-label="Cerrar escenarios">Cerrar</button></div>
+  <p>Elige un flujo alternativo para recorrerlo con datos simulados.</p>
+  <label for="demo-caso">Caso de uso</label>
+  <select id="demo-caso" onchange="llenarEscenariosDemo()"><option value="002">CU-002 · Generar actividad de seguimiento</option><option value="005">CU-005 · Reportes</option></select>
+  <label for="demo-escenario">Flujo alternativo</label><select id="demo-escenario" onchange="describirEscenarioDemo()"></select>
+  <p id="demo-descripcion" class="demo-nota"></p>
+  <div class="demo-acciones"><button class="filtro-pill" type="button" onclick="restablecerDemo()">Restablecer demostración</button><button class="boton-primario" type="button" onclick="aplicarEscenarioDemo()">Probar escenario</button></div>
+</dialog>
+<aside id="demo-indicador" class="demo-indicador" hidden aria-label="Escenario activo"><strong id="demo-activo"></strong><p id="demo-instruccion" role="status"></p><button type="button" class="filtro-pill" onclick="restablecerDemo()">Restablecer</button></aside>
+<dialog id="demo-resultado" class="demo-dialogo" aria-labelledby="demo-resultado-titulo">
+  <h2 id="demo-resultado-titulo">Resultado de la demostración</h2><p id="demo-resultado-mensaje" role="status"></p>
+  <div class="demo-acciones"><button type="button" class="filtro-pill" id="demo-volver" onclick="cerrarResultadoDemo()">Volver</button><button type="button" class="boton-primario" id="demo-continuar" onclick="continuarDemo()">Aceptar</button></div>
+</dialog>

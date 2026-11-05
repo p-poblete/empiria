@@ -1,0 +1,226 @@
+<!-- MÓDULO: Condiciones de prueba -->
+<!-- Panel para activar únicamente las condiciones del entorno que no pueden provocarse    -->
+<!-- desde la propia interfaz (FA-001, FA-002, FA-003, FA-005 a FA-009, FA-012 de otro      -->
+<!-- usuario, FA-015 a FA-019 y FA-020 de CU-002; FA-008, FA-012, FA-013 y FA-017 de CU-005). -->
+<!-- El resto de flujos alternativos se reproducen directamente desde la interfaz.           -->
+<button id="btn-condiciones" class="demo-tuerquita" type="button" onclick="abrirCondicionesPrueba()" aria-label="Condiciones de prueba" title="Condiciones de prueba" aria-haspopup="dialog" aria-controls="condiciones-panel"><i class="fa-solid fa-flask" aria-hidden="true"></i></button>
+
+<dialog id="condiciones-panel" class="demo-dialogo" aria-labelledby="condiciones-titulo">
+  <div class="demo-cabecera"><h2 id="condiciones-titulo">Condiciones de prueba</h2><button type="button" class="filtro-pill" onclick="cerrarCondicionesPrueba()" aria-label="Cerrar condiciones">Cerrar</button></div>
+  <p>Activa una condición, cierra este panel y provoca el flujo desde la interfaz (por ejemplo, pulsa <em>Asignar tarea</em> o <em>Crear tarea</em>). Las condiciones permanecen activas hasta que las desactives aquí o pulses <em>Restablecer condiciones</em>.</p>
+
+  <fieldset>
+    <legend>Sesión y servicio</legend>
+    <label><input type="checkbox" id="cond-sesion-expirada" onchange="cambiarCondicionPrueba('sesionExpirada', this.checked)"> Expirar la sesión al acceder <small>(FA-001)</small></label>
+    <label><input type="checkbox" id="cond-sesion-proceso" onchange="cambiarCondicionPrueba('sesionProceso', this.checked)"> Expirar la sesión durante la publicación <small>(FA-019)</small></label>
+    <label><input type="checkbox" id="cond-base-datos" onchange="cambiarCondicionPrueba('baseDatos', this.checked)"> Base de datos no disponible <small>(FA-002)</small></label>
+    <p class="demo-nota">FA-020 no se puede provocar con la normalidad del prototipo: <button type="button" class="filtro-pill" onclick="simularReinicioConColgada()">Simular reinicio con transacción colgada</button></p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Ciclo, clase y plantilla</legend>
+    <label><input type="checkbox" id="cond-sin-ciclo" onchange="cambiarCondicionPrueba('sinCicloActivo', this.checked)"> No existe un ciclo activo <small>(FA-003)</small></label>
+    <label><input type="checkbox" id="cond-sin-clase" onchange="cambiarCondicionPrueba('sinClase', this.checked)"> El ciclo no tiene clase de Classroom <small>(FA-005)</small></label>
+    <label><input type="checkbox" id="cond-sin-plantilla" onchange="cambiarCondicionPrueba('sinPlantilla', this.checked)"> El ciclo no tiene plantilla base <small>(FA-006)</small></label>
+    <label><input type="checkbox" id="cond-archivo" onchange="cambiarCondicionPrueba('archivoDrive', this.checked)"> La plantilla no existe en Google Drive <small>(FA-007)</small></label>
+    <label><input type="checkbox" id="cond-restringida" onchange="cambiarCondicionPrueba('restringida', this.checked)"> La plantilla no es accesible para Classroom <small>(FA-008 de CU-002)</small></label>
+    <label><input type="checkbox" id="cond-sin-estudiantes" onchange="cambiarCondicionPrueba('sinEstudiantes', this.checked)"> La clase no tiene estudiantes <small>(FA-009)</small></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Publicación en Classroom</legend>
+    <label><input type="checkbox" id="cond-publicacion" onchange="cambiarCondicionPrueba('publicacionAjena', this.checked)"> Hay otra publicación en curso en otra sesión <small>(FA-012)</small></label>
+    <label class="reporte-campo"><span>Respuesta de Classroom al publicar</span>
+      <select id="cond-comportamiento" onchange="CONDICIONES_PRUEBA.comportamiento = this.value; actualizarIndicadorCondiciones()">
+        <option value="correcto">Publicación correcta</option>
+        <option value="sinPermisos">Sin rol de Profesor (FA-015)</option>
+        <option value="cuota">Cuota excedida (FA-016)</option>
+        <option value="adjunto">Fallo al adjuntar la plantilla (FA-017)</option>
+        <option value="sinConexion">Sin conexión con la API (FA-018)</option>
+      </select></label>
+    <p class="demo-nota">FA-015 a FA-018 atraviesan el flujo real: transacciones, auditoría, reintentos y reversión.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Reportes</legend>
+    <label class="reporte-campo"><span>Repositorio de datos de los reportes</span>
+      <select id="cond-repositorio" onchange="CONDICIONES_PRUEBA.repositorioReportes = this.value; actualizarIndicadorCondiciones()">
+        <option value="disponible">Disponible</option>
+        <option value="estructura">Estructura de datos inválida (FA-012)</option>
+        <option value="repositorio">No disponible (FA-013)</option>
+      </select></label>
+    <label class="reporte-campo"><span>Consolidado en Google Sheets</span>
+      <select id="cond-consolidado" onchange="CONDICIONES_PRUEBA.consolidado = this.value; actualizarIndicadorCondiciones()">
+        <option value="disponible">Disponible</option>
+        <option value="error">Error de permisos, cuota o conexión (FA-017)</option>
+      </select></label>
+  </fieldset>
+
+  <p class="demo-nota">Sin ellas, FA-004, FA-010, FA-011, FA-013 (cancelar formulario), FA-014 y FA-018 se provocan directamente en Tareas; en Reportes lo mismo FA-001 a FA-006, FA-009 a FA-016 y FA-018 a FA-020.</p>
+  <div class="demo-acciones"><button type="button" class="filtro-pill" onclick="restaurarCondicionesPrueba()">Restablecer condiciones</button><button type="button" class="boton-primario" onclick="cerrarCondicionesPrueba()">Listo, ir a probar</button></div>
+</dialog>
+
+<aside id="condiciones-indicador" class="demo-indicador" hidden aria-label="Condiciones activas"><strong>Condiciones activas</strong><p id="condiciones-resumen" role="status"></p><button type="button" class="filtro-pill" onclick="restaurarCondicionesPrueba()">Restablecer</button><button type="button" class="filtro-pill" onclick="abrirCondicionesPrueba()">Abrir panel</button></aside>
+
+<dialog id="aviso-sistema" class="demo-dialogo" aria-labelledby="aviso-sistema-titulo">
+  <h2 id="aviso-sistema-titulo">Aviso del sistema</h2><p id="aviso-sistema-mensaje" role="status"></p>
+  <div class="demo-acciones"><button type="button" class="filtro-pill" onclick="cerrarAvisoSistema()">Volver</button><button type="button" class="boton-primario" id="aviso-sistema-continuar" onclick="continuarAvisoSistema()">Aceptar</button></div>
+</dialog>
+
+<script>
+  // INICIO: Estado de las condiciones de prueba
+  var CONDICIONES_PRUEBA = {
+    sesionExpirada: false, sesionProceso: false, baseDatos: false,
+    sinCicloActivo: false, sinClase: false, sinPlantilla: false, archivoDrive: false, restringida: false, sinEstudiantes: false,
+    publicacionAjena: false, comportamiento: 'correcto', repositorioReportes: 'disponible', consolidado: 'disponible'
+  };
+  var ETIQUETAS_CONDICIONES = {
+    sesionExpirada: 'Sesión expirada (FA-001 · FA-008)', sesionProceso: 'Sesión expira al publicar (FA-019)', baseDatos: 'Base de datos no disponible (FA-002)',
+    sinCicloActivo: 'Sin ciclo activo (FA-003)', sinClase: 'Sin clase de Classroom (FA-005)', sinPlantilla: 'Sin plantilla base (FA-006)',
+    archivoDrive: 'Plantilla sin archivo en Drive (FA-007)', restringida: 'Plantilla no accesible (FA-008 de CU-002)', sinEstudiantes: 'Clase sin estudiantes (FA-009)',
+    publicacionAjena: 'Publicación en curso en otra sesión (FA-012)', repositorioReportes: 'Repositorio de reportes alterado (FA-012 / FA-013)', consolidado: 'Error al abrir consolidado (FA-017)'
+  };
+  var ETIQUETAS_COMPORTAMIENTO = { sinPermisos: 'Classroom sin rol de Profesor (FA-015)', cuota: 'Classroom con cuota excedida (FA-016)', adjunto: 'Classroom falla al adjuntar (FA-017)', sinConexion: 'Classroom sin conexión (FA-018)' };
+  var avisoAccionActual = null;
+  var intentosBaseDatosPrueba = 0;
+  // FIN: Estado de las condiciones de prueba
+
+  // INICIO: Panel e indicador
+  function abrirCondicionesPrueba() { document.getElementById('condiciones-panel').showModal(); }
+  function cerrarCondicionesPrueba() { document.getElementById('condiciones-panel').close(); }
+
+  function cambiarCondicionPrueba(clave, activo) {
+    CONDICIONES_PRUEBA[clave] = !!activo;
+    if (clave === 'baseDatos') intentosBaseDatosPrueba = 0;
+    actualizarIndicadorCondiciones();
+  }
+
+  function restaurarCondicionesPrueba() {
+    // Las claves booleanas vuelven a su valor por defecto; las select se normalizan.
+    var CLAVES_BOOLEANAS = ['sesionExpirada', 'sesionProceso', 'baseDatos', 'sinCicloActivo', 'sinClase', 'sinPlantilla', 'archivoDrive', 'restringida', 'sinEstudiantes', 'publicacionAjena'];
+    CLAVES_BOOLEANAS.forEach(function(clave) { CONDICIONES_PRUEBA[clave] = false; });
+    CONDICIONES_PRUEBA.comportamiento = 'correcto'; CONDICIONES_PRUEBA.repositorioReportes = 'disponible'; CONDICIONES_PRUEBA.consolidado = 'disponible';
+    ['cond-sesion-expirada', 'cond-sesion-proceso', 'cond-base-datos', 'cond-sin-ciclo', 'cond-sin-clase', 'cond-sin-plantilla', 'cond-archivo', 'cond-restringida', 'cond-sin-estudiantes', 'cond-publicacion'].forEach(function(id) {
+      var control = document.getElementById(id);
+      if (control) control.checked = false;
+    });
+    var comportamiento = document.getElementById('cond-comportamiento');
+    if (comportamiento) comportamiento.value = 'correcto';
+    var repositorio = document.getElementById('cond-repositorio');
+    if (repositorio) repositorio.value = 'disponible';
+    var consolidado = document.getElementById('cond-consolidado');
+    if (consolidado) consolidado.value = 'disponible';
+    intentosBaseDatosPrueba = 0;
+    actualizarIndicadorCondiciones();
+  }
+
+  function actualizarIndicadorCondiciones() {
+    var activas = [];
+    Object.keys(ETIQUETAS_CONDICIONES).forEach(function(clave) {
+      var valor = CONDICIONES_PRUEBA[clave];
+      // Las claves de selección están activas solo cuando su valor difiere del estado normal.
+      var estaActiva = typeof valor === 'boolean' ? valor : valor && valor !== 'disponible';
+      if (estaActiva) activas.push(ETIQUETAS_CONDICIONES[clave]);
+    });
+    if (CONDICIONES_PRUEBA.comportamiento !== 'correcto' && ETIQUETAS_COMPORTAMIENTO[CONDICIONES_PRUEBA.comportamiento]) activas.push(ETIQUETAS_COMPORTAMIENTO[CONDICIONES_PRUEBA.comportamiento]);
+    document.getElementById('condiciones-resumen').textContent = activas.length ? activas.join(' · ') : 'Ninguna. Realiza las acciones directamente en la interfaz.';
+    document.getElementById('condiciones-indicador').hidden = activas.length === 0;
+  }
+  // FIN: Panel e indicador
+
+  // INICIO: API para los demás módulos
+  function estaConPrueba(clave) { return !!CONDICIONES_PRUEBA[clave]; }
+
+  // Consume una condición de un solo uso (sesiones) y devuelve si estaba activa.
+  function consumirPrueba(clave) {
+    var activa = estaConPrueba(clave);
+    if (activa) {
+      CONDICIONES_PRUEBA[clave] = false;
+      // La casilla del panel refleja que la condición ya se consumió.
+      var casilla = document.getElementById({ sesionExpirada: 'cond-sesion-expirada', sesionProceso: 'cond-sesion-proceso' }[clave]);
+      if (casilla) casilla.checked = false;
+      actualizarIndicadorCondiciones();
+    }
+    return activa;
+  }
+
+  function condicionComportamientoClassroom() { return CONDICIONES_PRUEBA.comportamiento || 'correcto'; }
+  function condicionRepositorioReportes() { return CONDICIONES_PRUEBA.repositorioReportes !== 'disponible' ? CONDICIONES_PRUEBA.repositorioReportes : ''; }
+  function condicionConsolidadoError() { return CONDICIONES_PRUEBA.consolidado === 'error'; }
+
+  // Aviso genérico reutilizable con una acción opcional en el botón principal.
+  function avisoSistema(mensaje, etiquetaContinuar, accion) {
+    document.getElementById('aviso-sistema-mensaje').textContent = mensaje;
+    document.getElementById('aviso-sistema-continuar').textContent = etiquetaContinuar || 'Aceptar';
+    avisoAccionActual = accion || null;
+    var dialogo = document.getElementById('aviso-sistema');
+    if (!dialogo.open) dialogo.showModal();
+  }
+  function continuarAvisoSistema() {
+    document.getElementById('aviso-sistema').close();
+    var accion = avisoAccionActual;
+    avisoAccionActual = null;
+    if (accion) accion();
+  }
+  function cerrarAvisoSistema() {
+    document.getElementById('aviso-sistema').close();
+    avisoAccionActual = null;
+  }
+  // FIN: API para los demás módulos
+
+  // INICIO: FA-001 y FA-002 · Validaciones al iniciar sesión (paso 2 y 3 del flujo básico)
+  function probarInicioSesion() {
+    if (consumirPrueba('sesionExpirada')) {
+      // FA-001: primera autenticación rechazada; la segunda ya funciona.
+      avisoSistema('Su sesión ha expirado. Inicie sesión nuevamente para continuar.', 'Iniciar sesión', iniciarSesion);
+      return false;
+    }
+    if (estaConPrueba('baseDatos')) {
+      evaluarDisponibilidadBaseDatosPrueba();
+      return false;
+    }
+    return true;
+  }
+
+  function evaluarDisponibilidadBaseDatosPrueba() {
+    intentosBaseDatosPrueba += 1;
+    if (intentosBaseDatosPrueba <= 3) {
+      avisoSistema('El servicio no está disponible en este momento. Intente nuevamente en unos minutos. Intento ' + intentosBaseDatosPrueba + ' de 3.', 'Reintentar', evaluarDisponibilidadBaseDatosPrueba);
+    } else {
+      avisoSistema('El servicio no está disponible en este momento. La conexión falló tras tres intentos y el sistema no permitió el acceso. Desactive la condición «Base de datos no disponible» en el panel de condiciones y pruebe nuevamente.', 'Cerrar');
+    }
+  }
+  // FIN: FA-001 y FA-002
+
+  // INICIO: FA-003 + precondiciones · Controles al abrir el formulario de Tareas
+  function validarCondicionesTarea() {
+    if (estaConPrueba('sinCicloActivo')) {
+      avisoSistema('No existe un ciclo académico activo. Active un ciclo antes de continuar.', 'Aceptar', function() { switchTab('ciclo'); });
+      return false;
+    }
+    return typeof validarPrecondicionesTarea === 'function' ? validarPrecondicionesTarea() : true;
+  }
+  // FIN: FA-003 + precondiciones
+
+  // INICIO: FA-008 de CU-005 · Bloqueo de una operación protegida por sesión inválida
+  function probarOperacionProtegida() {
+    if (!consumirPrueba('sesionExpirada')) return true;
+    cerrarSesion();
+    avisoSistema('Su sesión ha expirado. Inicie sesión nuevamente para continuar.', 'Iniciar sesión', iniciarSesion);
+    return false;
+  }
+  // FIN: FA-008 de CU-005
+
+  // INICIO: FA-020 · Cierre inesperado con transacción colgada y nueva sesión
+  function simularReinicioConColgada() {
+    if (typeof iniciarTransaccion !== 'function') return;
+    var colgada = iniciarTransaccion('Ciclo 2026-II', 'Actividad suspendida por el cierre', 'P1');
+    // La transacción tenía más de treinta minutos al producirse el cierre inesperado.
+    colgada.fechaInicio = new Date(Date.now() - 35 * 60 * 1000).toISOString();
+    avisoSistema('Se simuló una transacción en En Proceso de hace 35 minutos y el cierre inesperado del navegador. Pulsa Reiniciar para acceder con una nueva sesión: el sistema rescatará la transacción y el flujo continuará con normalidad.', 'Reiniciar', function() {
+      iniciarSesion();
+      avisoSistema('La transacción colgada quedó en estado Fallido y registrada en la auditoría con el tipo «Transacción Colgada». La nueva sesión continúa con normalidad (FA-020).', 'Terminar');
+    });
+  }
+  // FIN: FA-020
+</script>
