@@ -5,11 +5,11 @@ const { randomUUID } = require('node:crypto');
 const raiz = path.resolve(__dirname, '..');
 const AHORA = '2026-11-05T15:00:00-05:00';
 
-function servidorDemo() {
+function servidorDemo(opciones = {}) {
   const almacen = new Map();
   let bloqueado = false;
   const contexto = {
-    Date: class extends Date {
+    Date: opciones.relojReal ? Date : class extends Date {
       constructor(...args) { super(...(args.length ? args : [AHORA])); }
       static now() { return new Date(AHORA).getTime(); }
     },
@@ -20,6 +20,7 @@ function servidorDemo() {
       releaseLock() { bloqueado = false; }
     }) }
   };
+  Object.assign(contexto, opciones.servicios || {});
   vm.createContext(contexto);
   ['BaseDatos.gs', 'Código.gs'].forEach(nombre => vm.runInContext(fs.readFileSync(path.join(raiz, 'src/servidor', nombre), 'utf8'), contexto));
   return contexto;

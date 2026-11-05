@@ -46,3 +46,14 @@ npm run test:browser
 Las pruebas componen los HTML, ejecutan Alpine real y prueban los endpoints bajo dobles de los servicios de Google. No despliegan ni necesitan una cuenta de Google. GitHub Actions ejecuta estas comprobaciones al subir cambios y en los pull requests.
 
 La publicación es una simulación de Classroom; el acceso de demostración no autentica usuarios. El despliegue en Apps Script queda pospuesto. La configuración y los límites de esta demo están en la guía.
+
+## Probar sin Apps Script
+
+```bash
+npm ci
+npm run preview
+```
+
+Abre **http://127.0.0.1:4173**. La vista local compone los HTML del proyecto y ejecuta sus endpoints en Node con servicios de Google simulados, incluidos los consolidados de solo consulta. No usa cuentas de Google ni crea archivos en Sheets o tareas en Classroom. Los datos se mantienen en memoria y se pierden al detener el proceso; recargar la página inicia otra sesión de demostración.
+
+Se usa el reloj real: para publicar, elige una fecha futura dentro del ciclo 2026-II. Alpine se sirve localmente; estilos e iconos externos requieren Internet. Puedes cambiar el puerto con `EMPIRIA_PUERTO` y la espera simulada con `EMPIRIA_LATENCIA_MS` (500 ms por defecto). Detén el servidor con Ctrl+C.

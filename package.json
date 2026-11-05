@@ -5,7 +5,8 @@
   "description": "Comprobaciones de la demo Empiria en Google Apps Script",
   "scripts": {
     "test": "node --test tests/servidor.test.cjs",
-    "test:browser": "node tests/navegador.cjs"
+    "test:browser": "node tests/navegador.cjs",
+    "preview": "node scripts/preview.cjs"
   },
   "devDependencies": {
     "alpinejs": "3.17.5",

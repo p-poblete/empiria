@@ -17,3 +17,9 @@ Siguiente paso: revisar el PR con los compañeros. Después, cuando el usuario l
 ## Hallazgos previos y límites
 
 El consolidado todavía conserva datos antiguos cuando ya existe, no bloquea duplicados y su protección de advertencia no garantiza solo consulta ni configura lectores. No se corrigieron en esta migración. El catálogo y ciclo activo siguen siendo de demostración (2026-II); las plantillas locales de CU-003 no están registradas en el servidor. La idempotencia simulada usa caché temporal por sesión; no es persistencia de producción.
+
+## Vista local para probar — 2026-11-05
+
+El usuario pidió ejecutar sin Apps Script. Añadido `npm run preview` (`scripts/preview.cjs`) y dejado activo en http://127.0.0.1:4173, solo accesible desde esta máquina. El cliente usa el código real, Alpine local y un puente HTTP hacia los endpoints con servicios Google simulados en memoria; también hay consolidado HTML local. El helper de pruebas acepta reloj real y servicios adicionales sin cambiar su comportamiento por defecto.
+
+Verificado: 6 pruebas de servidor, carga en Chromium por HTTP de plantillas y 11 investigadores sin errores JS, y consolidado local sin acceso a Google. Navegador solicitado mediante xdg-open. La aplicación usa fecha real; publicar requiere entrega futura dentro de 2026-II. Recargar inicia otra sesión demo. No se desplegó en Apps Script.
