@@ -144,7 +144,7 @@ test('la preparación crea un borrador individual y al repetir no duplica tarea 
       Teachers: { get: () => ({ userId: 'docente' }) }, Students: { get: () => ({ userId: 'usuario' }) },
       CourseWork: {
         list: () => ({ courseWork: tarea ? [tarea] : [] }), get: () => tarea,
-        create: datos => { creadas++; tarea = { ...JSON.parse(JSON.stringify(datos)), id: 'tarea-1' }; return tarea; }
+        create: datos => { assert.equal(Object.hasOwn(datos, 'individualStudentOptions'), false); assert.ok(datos.individualStudentsOptions); creadas++; tarea = { ...JSON.parse(JSON.stringify(datos)), id: 'tarea-1' }; return tarea; }
       }
     }
   };
@@ -155,7 +155,7 @@ test('la preparación crea un borrador individual y al repetir no duplica tarea 
   assert.equal(creadas, 1);
   assert.equal(tarea.state, 'DRAFT');
   assert.equal(tarea.assigneeMode, 'INDIVIDUAL_STUDENTS');
-  assert.deepEqual(tarea.individualStudentOptions.studentIds, ['usuario']);
+  assert.deepEqual(tarea.individualStudentsOptions.studentIds, ['usuario']);
   assert.equal(tarea.materials[0].driveFile.shareMode, 'STUDENT_COPY');
   assert.equal(e.bdHojas['SYS - Asignaciones'].datos.length, 2);
   assert.equal(e.bdHojas['SYS - Secciones asignadas'].datos.length, 5);

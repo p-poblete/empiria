@@ -162,7 +162,7 @@ function diagnosticarEntregaRegistro_(idClase, idTarea, idEntrega) {
     var p = h.getProtections(SpreadsheetApp.ProtectionType.SHEET).filter(function(p) { return !p.isWarningOnly(); });
     var esperado = rangosEditablesRegistro_(h.getName(), h.getMaxRows(), h.getMaxColumns());
     var actual = p.length === 1 ? p[0].getUnprotectedRanges().map(function(r) { return { fila: r.getRow(), columna: r.getColumn(), filas: r.getNumRows(), columnas: r.getNumColumns() }; }) : [];
-    return { seccion: h.getName(), protegida: p.length === 1, rangosCorrectos: p.length === 1 && JSON.stringify(esperado) === JSON.stringify(actual), dominioPuedeEditar: p.length === 1 && p[0].canDomainEdit() };
+    return { seccion: h.getName(), protegida: p.length === 1, rangosCorrectos: p.length === 1 && JSON.stringify(esperado) === JSON.stringify(actual), dominioPuedeEditar: p.length === 1 ? consultarDominioProteccionRegistro_(p[0]) : null };
   });
   return { estructuraValida: true, registros: plan.registros.length, avisos: plan.avisos, protecciones: protecciones,
     propietario: DriveApp.getFileById(contexto.idArchivo).getOwner().getEmail(), escrituras: false };
@@ -174,4 +174,13 @@ function aplicarProteccionesEntregaRegistro_(idClase, idTarea, idEntrega) {
   // Valida encabezados y fórmulas antes de tocar protecciones de una copia.
   leerCapturaRegistro_(libro, contexto.seleccion);
   return protegerLibroRegistro_(libro);
+}
+
+// null significa que Google no permitió consultar este permiso.
+function consultarDominioProteccionRegistro_(proteccion) {
+  try { return proteccion.canDomainEdit(); }
+  catch (error) {
+    console.warn('No se pudo consultar el permiso de dominio: ' + error.message);
+    return null;
+  }
 }

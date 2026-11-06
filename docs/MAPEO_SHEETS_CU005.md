@@ -8,8 +8,8 @@ Actualización posterior: por solicitud del usuario se completó la estructura d
 
 Arquitectura acordada: [flujo de registro mediante copias individuales de Classroom](FLUJO_REGISTRO_CLASSROOM.md). CU-002 asigna, el investigador completa su copia, la recolección lee y vuelca en BD, y CU-005 consulta esa BD. No se plantea un registro web independiente ni escritura directa desde la plantilla. Las notas de los libros sobre integración Apps Script se concretan con este flujo.
 
-- [BD](https://docs.google.com/spreadsheets/d/1JOwi7O7ZdHK16TMNMydyng7rG6aaONDSctEYa1vMjl0/edit): tablas persistentes de consulta.
-- [Plantilla](https://docs.google.com/spreadsheets/d/1JyxAew7j0FXtmOHduXpe2PpVgX0qKmNUvBGzADfK76I/edit): captura `R - ...`, con contexto y campos; no es el repositorio de CU-005. Sus instrucciones plantean guardar por Apps Script, pero no se verificó ese proceso.
+- **Empiria_Base_de_Datos**: tablas persistentes de consulta.
+- **Empiria_Registro**: captura `R - ...`, con contexto y campos; no es el repositorio de CU-005. Sus instrucciones plantean guardar por Apps Script, pero no se verificó ese proceso.
 
 Recorrido propuesto: controlador Alpine de reportes → `obtenerDatosReportes` → lector de Sheets en servidor → normalización y validación → respuesta de consulta → tablas, indicadores y exportaciones. Reutilizar cálculos puros existentes después de corregir identidad y cobertura de datos.
 

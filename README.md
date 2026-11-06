@@ -32,6 +32,12 @@ El [plan de migración](docs/PLAN_MIGRACION_ALPINE.md) recoge las etapas, criter
 
 Al copiar esta versión al editor de Apps Script, incluye los HTML `Navegacion`, `Reactivos`, `AlpineTareas`, `AlpineReportes` y `TablaPublicaciones`, además de los archivos existentes. `Reactivos` contiene el adaptador compartido de Apps Script; cada módulo registra su estado reactivo en su propio archivo. Las directivas permanecen en las vistas. Alpine se carga desde CDN y requiere conexión a Internet.
 
+## Guía para la entrega
+
+La explicación del funcionamiento está disponible en [Markdown](docs/EXPLICACION_ENTREGA_ALPINE.md) y [PDF](docs/EXPLICACION_ENTREGA_ALPINE.pdf): arquitectura, navegación, puente con Apps Script, carga, recorrido de ambos CUs y preguntas individuales.
+
+El servidor está separado en `Código.gs`, `TareasServidor.gs`, `ReportesServidor.gs`, `Consolidados.gs` y `BaseDatos.gs`. Para preparar los cinco GS y veinte HTML con nombres únicos, ejecuta `node scripts/preparar-entrega-alpine.cjs` y sigue la [lista de instalación](docs/ENTREGA_ALPINE.md). Reemplaza también Código.gs para evitar funciones duplicadas.
+
 ## Pruebas locales
 
 Con Node.js 22 o superior:
@@ -49,7 +55,7 @@ La publicación es una simulación de Classroom; el acceso de demostración no a
 
 ## Registro y recolección con Sheets
 
-El [flujo de registro](docs/FLUJO_REGISTRO_CLASSROOM.md) define la distribución de copias individuales, captura, recolección y consulta. Los módulos privados `src/servidor/Registro*.gs` preparan una prueba individual de Classroom y validan/importan datos a Sheets con IDs persistentes y bajas lógicas. Todavía no están conectados a los botones de la demo ni se han ejecutado en Google.
+El [flujo de registro](docs/FLUJO_REGISTRO_CLASSROOM.md) define la distribución de copias individuales, captura, recolección y consulta. Los módulos privados `src/servidor/Registro*.gs` preparan una prueba individual de Classroom y validan/importan datos a Sheets con IDs persistentes y bajas lógicas. Todavía no están conectados a los botones de la demo. La prueba manual en Google confirmó configuración, creación de borrador y diagnóstico de estructura/protecciones; siguen pendientes la edición con cuenta investigadora y la recolección real.
 
 El [contrato de Sheets](docs/esquema-sheets.json) recoge las tablas y encabezados; la [guía de prueba real](docs/PRUEBA_REGISTRO_CLASSROOM.md) explica configuración, permisos y límites. `npm run preparar:registro` genera un archivo para el editor a partir de `datos/registro-prueba.local.json`, ignorado por Git; para otra instalación usa `datos/registro-prueba.example.json`. El archivo generado reúne los siete módulos: no cargar ambos formatos simultáneamente.
 

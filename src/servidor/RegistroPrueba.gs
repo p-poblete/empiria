@@ -53,14 +53,14 @@ function prepararPruebaSinBloqueoRegistro_() {
     if (coincidencias.length > 1) errorRegistro_('BORRADOR_DUPLICADO_REVISAR');
     tarea = coincidencias[0] || Classroom.Courses.CourseWork.create({
       title: titulo, description: 'Prueba individual de captura, protecciones y recolección de Empiria. Usar solo datos sintéticos.',
-      workType: 'ASSIGNMENT', state: 'DRAFT', assigneeMode: 'INDIVIDUAL_STUDENTS', individualStudentOptions: { studentIds: [String(perfil.id)] },
+      workType: 'ASSIGNMENT', state: 'DRAFT', assigneeMode: 'INDIVIDUAL_STUDENTS', individualStudentsOptions: { studentIds: [String(perfil.id)] },
       materials: [{ driveFile: { driveFile: { id: operacion.plantilla }, shareMode: 'STUDENT_COPY' } }]
     }, prueba.idClase);
     operacion.tarea = String(tarea.id);
     props.setProperty('EMPIRIA_PRUEBA_OPERACION', JSON.stringify(operacion));
   }
   var materiales = tarea.materials || [];
-  var alumnos = tarea.individualStudentOptions && tarea.individualStudentOptions.studentIds || [];
+  var alumnos = tarea.individualStudentsOptions && tarea.individualStudentsOptions.studentIds || [];
   if (tarea.assigneeMode !== 'INDIVIDUAL_STUDENTS' || alumnos.length !== 1 || String(alumnos[0]) !== String(perfil.id) ||
       materiales.length !== 1 || !materiales[0].driveFile || !materiales[0].driveFile.driveFile || materiales[0].driveFile.shareMode !== 'STUDENT_COPY' || String(materiales[0].driveFile.driveFile.id) !== String(operacion.plantilla) || ['DRAFT', 'PUBLISHED'].indexOf(tarea.state) === -1) errorRegistro_('BORRADOR_ALTERADO');
   var asignaciones = tablaRegistro_(bd, 'SYS - Asignaciones');

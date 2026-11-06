@@ -21,7 +21,7 @@ La publicación sigue siendo una **simulación de Classroom**, ejecutada ahora e
 5. `src/vistas/FlujosTareas.html`: procesa respuestas, reintenta cuotas, registra auditoría y coordina cancelación con el servidor.
 6. `src/vistas/ReporteInvestigador.html` y `ReporteCarrera.html`: selectores, búsquedas y filtros.
 7. `src/vistas/TablaPublicaciones.html`: tabla compartida, con un `x-for` para columnas y otro para filas.
-8. `src/servidor/Código.gs`: endpoints de datos, publicación simulada y cancelación.
+8. `src/servidor/Código.gs`: entrada web e inclusiones. `TareasServidor.gs`: catálogo, publicación simulada y cancelación. `ReportesServidor.gs`: consulta y validación de reportes. `Consolidados.gs`: consulta/creación de consolidado en Sheets. `BaseDatos.gs`: datos demo.
 
 ## Recorrido de CU-002
 

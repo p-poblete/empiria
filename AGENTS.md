@@ -4,7 +4,7 @@
 
 This repository contains the Spanish-language SGIU research and task management demo, implemented as a Google Apps Script web app. Files are organized by responsibility:
 
-- `src/servidor/`: `Código.gs` (server entry point and HTML inclusion helper) and `BaseDatos.gs` (demonstration data).
+- `src/servidor/`: `Código.gs` (web entry point and HTML inclusion), `TareasServidor.gs` (CU-002), `ReportesServidor.gs` (CU-005 queries), `Consolidados.gs` (Sheets exports), and `BaseDatos.gs` (demonstration data). Registro*.gs contains the separate real registration backend.
 - `src/vistas/`: `Index.html` and the HTML views and components included through Apps Script template expressions.
 - `src/scripts/Scripts.html`: browser JavaScript for demo sessions, cycles, tasks, templates, and reports.
 - `src/estilos/Estilos.html`: shared CSS and external Tailwind, Font Awesome, and Google Fonts dependencies.
@@ -25,7 +25,7 @@ Opening `Index.html` directly does not evaluate its server template includes. Va
 
 Follow the existing two-space indentation, semicolon-terminated JavaScript, and `var` declarations. Use descriptive Spanish camelCase names such as `crearTarea` and `cicloEstadoActual`; use uppercase snake case for configuration flags such as `SIMULAR_SIN_INVESTIGADORES`.
 
-Keep DOM IDs consistent between markup and JavaScript. Put shared styles in `Estilos.html`, client behavior in `Scripts.html`, and server functions in `Código.gs`. Preserve Spanish interface text. No formatter or linter is configured.
+Keep DOM IDs consistent between markup and JavaScript. Put shared styles in `Estilos.html`, client behavior in `Scripts.html`, and server functions in the corresponding responsibility module (`Código.gs`, `TareasServidor.gs`, `ReportesServidor.gs`, or `Consolidados.gs`). Preserve Spanish interface text. No formatter or linter is configured.
 
 ## Testing Guidelines
 

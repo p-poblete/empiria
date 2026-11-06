@@ -134,8 +134,8 @@ Mapeo detallado, brechas y secuencia propuesta: [MAPEO_SHEETS_CU005.md](MAPEO_SH
 
 El usuario indicó Google Sheets como repositorio de consulta. Se inspeccionaron metadatos, encabezados y notas de diseño en lectura, sin modificar los libros:
 
-- BD: https://docs.google.com/spreadsheets/d/1JOwi7O7ZdHK16TMNMydyng7rG6aaONDSctEYa1vMjl0/edit
-- Plantilla de captura: https://docs.google.com/spreadsheets/d/1JyxAew7j0FXtmOHduXpe2PpVgX0qKmNUvBGzADfK76I/edit
+- BD: Empiria_Base_de_Datos (identificador en configuración local privada)
+- Plantilla de captura: Empiria_Registro (identificador en configuración local privada)
 
 La BD contiene tablas `DB - ...` de investigadores, publicaciones (Journal/Conferencia y otras), eventos, proyectos, grupos y semilleros; también tablas `ACT - ...`. La plantilla contiene formularios `R - ...`; sus notas indican envío a la BD mediante Apps Script. La inspección no verifica que ese envío esté implementado.
 
