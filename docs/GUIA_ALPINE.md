@@ -16,7 +16,7 @@ La publicación sigue siendo una **simulación de Classroom**, ejecutada ahora e
 
 1. `src/vistas/Index.html`: carga Alpine 3.17.5 con `defer`, define `x-data` y compone las vistas.
 2. `src/vistas/Navegacion.html`: registra `Alpine.store('navegacion')`; `vistaActual` determina qué módulo se muestra con `x-show`.
-3. `src/scripts/Reactivos.html`: registra `tareas` y `reportes`; contiene `llamarServidor`, que convierte los callbacks de `google.script.run` en promesas.
+3. `src/scripts/Reactivos.html`: contiene `llamarServidor`, el adaptador compartido que convierte los callbacks de `google.script.run` en promesas. `AlpineTareas.html` registra el store `tareas` y el formulario inicial; `AlpineReportes.html` registra el store `reportes`. Cada archivo escucha `alpine:init` y se incluye antes del inicio diferido de Alpine. Las directivas siguen en las vistas.
 4. `src/vistas/Tareas.html`: enlaza los campos con el estado, recorre las plantillas y presenta carga/error.
 5. `src/vistas/FlujosTareas.html`: procesa respuestas, reintenta cuotas, registra auditoría y coordina cancelación con el servidor.
 6. `src/vistas/ReporteInvestigador.html` y `ReporteCarrera.html`: selectores, búsquedas y filtros.

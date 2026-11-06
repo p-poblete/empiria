@@ -67,7 +67,7 @@ La evaluación exige navegación con Alpine, estados reactivos durante llamadas 
 | `reporteActual` | Elegir investigador o carrera y línea. |
 | `reportesVisibles` | Ocultar pestañas y paneles durante la carga o ante un error. Su valor se actualiza desde la carga reactiva del CU-005. |
 
-Los eventos de navegación usan `@click`. `switchTab()` y `cambiarSubmoduloReportes()` delegan al store para conservar los flujos existentes. Los callbacks de entrada se ejecutan con `Alpine.nextTick`, después de que `x-show` haya mostrado la vista, para que los gráficos puedan medir su contenedor. Los stores `tareas` y `reportes` de `Reactivos.html` controlan carga, respuestas, formularios y filtros. `TablaPublicaciones.html` comparte el renderizado reactivo entre ambas modalidades.
+Los eventos de navegación usan `@click`. `switchTab()` y `cambiarSubmoduloReportes()` delegan al store para conservar los flujos existentes. Los callbacks de entrada se ejecutan con `Alpine.nextTick`, después de que `x-show` haya mostrado la vista, para que los gráficos puedan medir su contenedor. Los stores de `AlpineTareas.html` y `AlpineReportes.html` controlan carga, respuestas, formularios y filtros; `Reactivos.html` conserva el adaptador compartido de Apps Script. `TablaPublicaciones.html` comparte el renderizado reactivo entre ambas modalidades.
 
 La navegación usa `x-show`, en lugar de destruir las vistas, para conservar filtros y formularios. `x-cloak` evita mostrar los módulos antes de inicializar Alpine. Los selectores de anchura de reportes leen atributos reactivos, porque Alpine oculta con `display` y ya no con la clase `hidden`.
 
@@ -79,7 +79,8 @@ La navegación usa `x-show`, en lugar de destruir las vistas, para conservar fil
 - Vistas de los seis módulos: visibilidad con `x-show`.
 - `src/vistas/Reportes.html`, `ReporteInvestigador.html`, `ReporteCarrera.html`: pestañas, accesibilidad y paneles.
 - `src/scripts/Scripts.html`: puentes de compatibilidad, cálculos y presentación existente.
-- `src/scripts/Reactivos.html`: promesas de Apps Script, estado de Tareas y Reportes.
+- `src/scripts/Reactivos.html`: adaptador compartido de promesas de Apps Script.
+- `src/scripts/AlpineTareas.html` y `AlpineReportes.html`: estado reactivo de cada módulo, con registro durante `alpine:init`.
 - `src/vistas/TablaPublicaciones.html`: columnas, filas y vacío de ambas tablas de publicaciones.
 - `src/servidor/Código.gs`: catálogo de plantillas, publicación y cancelación simuladas.
 - `tests/` y `.github/workflows/verificaciones.yml`: comprobaciones locales y en GitHub.
@@ -118,3 +119,37 @@ Implementados carga y poblamiento reactivos en ambos CUs. Tareas consulta planti
 Se añadieron pruebas de servidor y navegador, flujo de comprobaciones en GitHub y [guía de explicación individual](GUIA_ALPINE.md). Las pruebas de navegador ejecutan Alpine real y el código de endpoints en un VM con dobles de CacheService y LockService. No equivalen a una validación con cuentas de Google.
 
 Por instrucción del usuario, el despliegue y su validación se posponen. No se subió código a Apps Script ni se modificaron archivos en Google. Los problemas previos del consolidado (actualización, duplicados y permisos) se mantienen como trabajo separado.
+
+## Pendientes de organización de Alpine — 2026-11-05
+
+### Fuente confirmada para CU-005
+
+Preparación de prueba real de restricciones/recolección: [PRUEBA_REGISTRO_CLASSROOM.md](PRUEBA_REGISTRO_CLASSROOM.md). Backend privado implementado localmente; no instalado en Google. La interfaz pública continúa en modo demo y CU-005 todavía consume BaseDatos.gs.
+
+Estructura de captura y recolección V2 aplicada a ambos libros con autorización del usuario: [detalle](SHEETS_V2_APLICADO.md). Datos originales preservados; integración de servidor pendiente.
+
+Flujo de negocio confirmado: [registro mediante copias individuales de Classroom](FLUJO_REGISTRO_CLASSROOM.md). CU-002 distribuye la plantilla, los investigadores completan sus copias, la recolección vuelca sus datos en BD y CU-005 consulta la BD. Esta definición sustituye cualquier supuesto de registro web independiente o guardado directo desde la plantilla.
+
+Mapeo detallado, brechas y secuencia propuesta: [MAPEO_SHEETS_CU005.md](MAPEO_SHEETS_CU005.md).
+
+El usuario indicó Google Sheets como repositorio de consulta. Se inspeccionaron metadatos, encabezados y notas de diseño en lectura, sin modificar los libros:
+
+- BD: https://docs.google.com/spreadsheets/d/1JOwi7O7ZdHK16TMNMydyng7rG6aaONDSctEYa1vMjl0/edit
+- Plantilla de captura: https://docs.google.com/spreadsheets/d/1JyxAew7j0FXtmOHduXpe2PpVgX0qKmNUvBGzADfK76I/edit
+
+La BD contiene tablas `DB - ...` de investigadores, publicaciones (Journal/Conferencia y otras), eventos, proyectos, grupos y semilleros; también tablas `ACT - ...`. La plantilla contiene formularios `R - ...`; sus notas indican envío a la BD mediante Apps Script. La inspección no verifica que ese envío esté implementado.
+
+Arquitectura propuesta: Alpine solicita la consulta a Apps Script; el servidor lee las tablas de la BD, valida encabezados y transforma los registros al contrato del reporte. El navegador recibe solo campos necesarios y autorizados. La plantilla es entrada de captura, no la fuente directa de CU-005.
+
+Brechas a resolver antes de atribuir indicadores: las notas de BD aclaran que `ID investigador (registrante)` identifica a quien guarda, no necesariamente al autor o responsable; tampoco se debe asumir que el ciclo de captura equivale al periodo de la contribución. Definir relación de participantes y claves de contribución para evitar atribuciones y conteos incorrectos. No se verificaron filas de datos ni completitud de indicadores. Mantener ausentes como no registrados, sin sustituirlos por datos demo.
+
+Reevaluación de alcance: separar archivos mejora mantenimiento, pero no completa los casos de uso. La migración anterior cubre los criterios tecnológicos locales; CU-002 sigue simulando Classroom y CU-005 consulta datos de demostración. No presentar ese cierre como integración funcional completa.
+
+Prioridad propuesta, aún sin implementar:
+
+1. CU-002: un controlador Alpine del flujo completo (abrir, validar desde el modelo, enviar, reintentar, cancelar y presentar resultado), incluidos errores por campo, modal y estado de operación. Sustituir la lectura del formulario desde el DOM y el estado repartido entre Scripts, Reactivos y FlujosTareas. El servidor debe seguir siendo responsable de validar y ejecutar la operación.
+2. CU-005: un modelo de consulta coherente para filtros, selección, colecciones, indicadores, detalles y exportaciones. Derivar las salidas del mismo resultado filtrado, conservando las reglas de cálculo existentes. Alpine controla la presentación; los cálculos puros y adaptadores de gráficos/exportación pueden seguir separados.
+3. Definir y completar contratos con servicios reales: contexto y plantillas autorizadas, publicación y registro persistente para CU-002; repositorio real autorizado y consolidado actualizado para CU-005. Esto requiere trabajo de servidor e integración, no más directivas Alpine. Mantener el despliegue pospuesto hasta solicitud explícita.
+4. Verificar los flujos completos con pruebas existentes ampliadas donde cambie el comportamiento; distinguir evidencia local con dobles de evidencia de integración real.
+
+- [x] Separar la lógica reactiva por vista: `AlpineTareas.html` y `AlpineReportes.html`; mantener utilidades compartidas en `Reactivos.html` y registro propio en cada módulo. Conservar las directivas de presentación (`x-model`, `x-for`, `x-show`, eventos) en las vistas. Inclusiones actualizadas; composición de pruebas y vista local descubren automáticamente los HTML nuevos. Esta separación conserva el comportamiento y los puentes anteriores en Scripts/FlujosTareas; no completa la migración de esos renderizadores ni conecta el backend real.

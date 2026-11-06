@@ -43,4 +43,4 @@ Login and report records are demonstration data. Do not treat the simulated logi
 
 ## Alpine migration
 
-Read `docs/PLAN_MIGRACION_ALPINE.md` and `docs/GUIA_ALPINE.md` for the current state. Keep Alpine as the only owner of migrated selects, form fields and publication tables; update stores rather than assigning `innerHTML`, `value`, or `disabled` on those nodes. `Reactivos.html` contains async state; `Navegacion.html` contains shared navigation. The user postponed deployment to Apps Script; do not deploy unless explicitly requested.
+Read `docs/PLAN_MIGRACION_ALPINE.md` and `docs/GUIA_ALPINE.md` for the current state. Keep Alpine as the only owner of migrated selects, form fields and publication tables; update stores rather than assigning `innerHTML`, `value`, or `disabled` on those nodes. `AlpineTareas.html` and `AlpineReportes.html` own their respective reactive stores; `Reactivos.html` contains the shared Apps Script promise adapter, and `Navegacion.html` contains shared navigation. Preserve their includes and registration before Alpine starts. The user postponed deployment to Apps Script; do not deploy unless explicitly requested.

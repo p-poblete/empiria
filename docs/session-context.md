@@ -1,34 +1,43 @@
 # Estado de sesión — 2026-11-05
 
-Repositorio público: https://github.com/p-poblete/empiria. Rama de trabajo: `feat/alpine-casos-uso`. [PR #1](https://github.com/p-poblete/empiria/pull/1) abierto hacia `main`, sin fusionar. Última implementación: `c448a91` (vista local). GitHub Actions aprobado también para esa versión; copia local sincronizada antes de guardar este resumen.
+## Repositorio y alcance
 
-## Actualización tecnológica completada localmente
+Repositorio público: https://github.com/p-poblete/empiria. Rama `feat/alpine-casos-uso`; PR #1 hacia main conocido abierto, no fusionado. La entrega actual añade backend privado de registro y separación de stores Alpine; revisar el estado de Git y del PR al retomar. No fusionar ni desplegar la web automáticamente.
 
-Plan en `docs/PLAN_MIGRACION_ALPINE.md` y guía de explicación individual en `docs/GUIA_ALPINE.md`. Casos formales: CU-002 (Generar Actividad de Seguimiento) y CU-005 (Generar reporte de seguimiento de investigación).
+## Decisión de registro vigente
 
-Alpine 3.17.5 controla navegación, acceso de demostración, títulos y pestañas. `Reactivos.html` añade stores tareas/reportes y un adaptador de promesas para google.script.run. Tareas obtiene plantillas del servidor, usa x-model/x-for y publica una simulación en Apps Script con validación, idempotencia y cancelación compensada. Reportes carga datos con estados reactivos, usa x-model/x-for en los selectores y renderiza publicaciones en ambas modalidades mediante TablaPublicaciones.html. Gráficos, detalles y exportaciones mantienen sus cálculos existentes.
+CU-002 distribuye una plantilla de Sheets como copia individual en Classroom → investigador completa copia → servidor recolector valida y vuelca a BD → CU-005 consulta BD. No hay registro web independiente ni escritura directa de la plantilla a BD. Identidad del declarante desde Classroom; no asumir autoría ni participante único. Ver `FLUJO_REGISTRO_CLASSROOM.md`.
 
-Verificaciones: npm test (6 pruebas) y npm run test:browser (16 escenarios) pasaron. Incluyen errores/vacíos, doble envío, cuotas, permisos, conexión, cancelación antes/después de ejecutar, fallo de cancelación, filtros, búsqueda, orden, paginación, CSV, generación HTML/JSON/PDF, precondiciones, sesión y datos escapados. Sin errores JS/Alpine ni IDs duplicados. Capturas a 1440/768/390 y evidencia en docs/capturas. Se configuró GitHub Actions para ambas suites. Para usar un Chromium existente: EMPIRIA_CHROMIUM_PATH=/ruta/al/ejecutable npm run test:browser.
+Usuario autorizó completar Sheets y luego probar restricciones reales. Creó una clase nueva y facilitó cuenta de prueba y proyecto Apps Script GCC_SI_Maquetado. Datos de clase/cuenta/proyecto en `datos/registro-prueba.local.json`, ignorado por Git; no copiarlos a código público. El usuario gestiona invitaciones. No se enviaron invitaciones ni se creó/publicó una tarea real.
 
-**El usuario pospuso explícitamente el despliegue en Apps Script.** No desplegar sin nueva solicitud. Las pruebas ejecutan los endpoints reales en un VM con servicios Google simulados; la integración y los permisos de Google siguen sin validar. Para el despliegue posterior se necesitan también los HTML Navegacion, Reactivos y TablaPublicaciones. No se integró Classroom real ni autenticación real.
+## Sheets aplicados
 
-Siguiente paso: recoger los resultados de la prueba manual del usuario en la vista local y corregir lo que encuentre; después revisar el PR con los compañeros. No fusionar ni desplegar automáticamente. Configurar y validar Apps Script solo cuando el usuario lo solicite. El grafo es anterior a la migración; verificar relaciones en fuente.
+Referirse por nombre: **Empiria_Registro** y **Empiria_Base_de_Datos**. Registro tiene 16 pestañas; formularios antiguos retirados, encabezados fila 1/datos fila 2, IDs A:C ocultos y 16 protecciones de hoja reales con excepciones en captura. Ficha solo fila 2; contexto y catálogos ocultos. Propietario puede cambiar las protecciones; falta comprobarlo con copia real de Classroom.
 
-## Hallazgos previos y límites
+BD tiene 27 pestañas: tablas originales preservadas, SYS para identidad, asignaciones, entregas, orígenes, contribuciones, participantes, recolecciones, errores, esquema, secciones asignadas y bajas. Se añadió ID actividad en M de ACT - Proyectos internos y O de ACT - Semilleros/Grupo Investigación, sin cambiar registros históricos. Estructuras operativas nuevas vacías. Readbacks de encabezados/validaciones aprobados. Hay indicios de desalineación histórica, sin corregir ni atribuir. Detalle en `SHEETS_V2_APLICADO.md`, mapeo en `MAPEO_SHEETS_CU005.md`, contrato vigente revisión 3 en `esquema-sheets.json`.
 
-El consolidado todavía conserva datos antiguos cuando ya existe, no bloquea duplicados y su protección de advertencia no garantiza solo consulta ni configura lectores. No se corrigieron en esta migración. El catálogo y ciclo activo siguen siendo de demostración (2026-II); las plantillas locales de CU-003 no están registradas en el servidor. La idempotencia simulada usa caché temporal por sesión; no es persistencia de producción.
+## Implementación de registro
 
-## Vista local para probar — 2026-11-05
+Siete módulos privados en src/servidor/Registro*.gs: contrato, validación, Google, referencias, recolección, bajas y preparación de prueba. Configuración administrativa explícita y funciones terminadas en _; no expuestas por google.script.run. Preparan libro por tarea, protecciones, borrador individual, identidad, IDs persistentes, referencias asistidas, importación repetible y bajas lógicas. Rechazan alteraciones de estructura/IDs/fórmulas, cambios de archivo y referencias inválidas. Solo se recolectan entregas TURNED_IN. Contribuciones canónicas se crean Pendientes; no acreditan deduplicación ni autoría.
 
-El usuario pidió ejecutar sin Apps Script. Añadido `npm run preview` (`scripts/preview.cjs`) y dejado activo en http://127.0.0.1:4173, solo accesible desde esta máquina. El cliente usa el código real, Alpine local y un puente HTTP hacia los endpoints con servicios Google simulados en memoria; también hay consolidado HTML local. El helper de pruebas acepta reloj real y servicios adicionales sin cambiar su comportamiento por defecto.
+La interfaz Alpine y endpoints públicos siguen en modo demo: CU-002 simula Classroom, CU-005 lee BaseDatos.gs. No se conectaron estos botones al backend real; el código nuevo se invoca explícitamente desde el editor. Recolección masiva/programada y lector real CU-005 siguen pendientes.
 
-Verificado: 6 pruebas de servidor, carga en Chromium por HTTP de plantillas y 11 investigadores sin errores JS, y consolidado local sin acceso a Google. Navegador solicitado mediante xdg-open. La aplicación usa fecha real; publicar requiere entrega futura dentro de 2026-II. Recargar inicia otra sesión demo. No se desplegó en Apps Script.
+## Prueba real y bloqueo actual
 
-## Cómo retomar
+El conector Drive devuelve 403 al leer el código del proyecto Apps Script. No hay herramientas de edición Apps Script/Classroom ni sesión CLI local autenticada. No se sincronizó ni ejecutó código remoto. No pedir que publique el proyecto ni que comparta credenciales.
 
-1. Leer este archivo y comprobar `git status` y el estado del PR #1; evitar cargar todo el historial.
-2. Comprobar si http://127.0.0.1:4173 responde. Al cerrar esta sesión estaba activo (HTTP 200), pero el proceso puede no sobrevivir al cierre o reinicio. Si no responde, ejecutar `npm run preview` desde el proyecto; `npm ci` solo si faltan dependencias.
-3. Abrir la vista local y continuar con las observaciones del usuario. No consta todavía su evaluación manual ni problemas reportados tras abrirla.
-4. Para repetir desde cero, recargar la página; para detener el servidor, Ctrl+C en la terminal donde se inició. No confundir la vista local con un despliegue en Google.
+`npm run preparar:registro` genera en /tmp un EmpiriaRegistro.gs único y manifest-requerido.json. Contiene la configuración privada de prueba; no versionar el artefacto. Añadir un archivo nuevo al editor existente, activar servicio avanzado Classroom y combinar permisos del manifiesto conservando los actuales. No requiere despliegue web. Procedimiento completo en `PRUEBA_REGISTRO_CLASSROOM.md`: configurar, preparar DRAFT, revisar/publicar explícitamente, abrir copia con investigador, diagnosticar/aplicar protecciones, preparar IDs/referencias, entregar y recolectar dos veces. El usuario debe ejecutar esos pasos donde falta acceso de herramientas.
 
-La guía para las preguntas individuales está en `docs/GUIA_ALPINE.md`; el seguimiento de criterios, en `docs/PLAN_MIGRACION_ALPINE.md`. Los cambios de esta entrega están en GitHub y no se fusionaron a main.
+## Verificaciones y pendientes
+
+- npm test: 27 pruebas aprobadas (incluye repetición sin duplicados, fallos antes/después de guardar, identidad, bajas y borrador dirigido a una sola cuenta).
+- Navegador: 16 escenarios demo aprobados con EMPIRIA_CHROMIUM_PATH=/home/scoria/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome. Chromium esperado por la versión actual de Playwright no está instalado; usar ese existente.
+- Contrato sincronizado con RegistroEsquema.gs; sintaxis del artefacto compuesto y git diff --check verificados.
+- Siguiente paso: cargar artefacto en Apps Script y ejecutar recorrido con docente/investigador; registrar resultados reales. No dar integración por validada con las pruebas locales.
+- Separación Alpine completada: AlpineTareas.html y AlpineReportes.html registran sus stores; Reactivos.html conserva llamarServidor. Las directivas siguen en las vistas y los puentes previos en Scripts/FlujosTareas se mantienen. Index incluye ambos módulos antes de alpine:init. Plan/guía actualizados. El grafo es anterior a la migración: verificar en fuente, no reconstruir automáticamente.
+- Consolidado antiguo no actualiza libro existente ni resuelve duplicados/permisos de consulta. Autenticación pública sigue simulada; no usar como autorización del backend nuevo.
+- Vista local disponible con npm run preview en http://127.0.0.1:4173 si se requiere; verificar proceso antes de afirmar que está activo.
+
+## Entrega de los puntos 7 y 8
+
+El usuario autorizó separar Alpine por vista y revisar/subir los cambios locales al PR #1. Dos bloques de revisión: backend privado/contrato de Sheets y organización de Alpine. Verificados 27 tests de servidor y 16 escenarios de navegador después de separar stores; composición local incluye los HTML nuevos. Configuración de clase/cuenta/proyecto se conserva solo en el JSON local ignorado; escaneo de candidatos públicos sin esos valores. El PR debe describir integración Google pendiente y UI todavía demo; no fusionar ni desplegar.
