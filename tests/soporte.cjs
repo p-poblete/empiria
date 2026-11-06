@@ -22,7 +22,7 @@ function servidorDemo(opciones = {}) {
   };
   Object.assign(contexto, opciones.servicios || {});
   vm.createContext(contexto);
-  ['BaseDatos.gs', 'Código.gs'].forEach(nombre => vm.runInContext(fs.readFileSync(path.join(raiz, 'src/servidor', nombre), 'utf8'), contexto));
+  fs.readdirSync(path.join(raiz, 'src/servidor')).filter(nombre => nombre.endsWith('.gs')).sort().forEach(nombre => vm.runInContext(fs.readFileSync(path.join(raiz, 'src/servidor', nombre), 'utf8'), contexto));
   return contexto;
 }
 

@@ -6,6 +6,7 @@
 .codex/
 .clasprc.json
 .clasp.json
+*.local.json
 *credentials*.json
 
 # Archivos generados y cachés
