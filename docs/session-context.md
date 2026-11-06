@@ -4,7 +4,7 @@ Usuario autorizó publicar todos los cambios y la explicación en la rama princi
 
 Verificaciones finales: 27 pruebas servidor, 16 escenarios navegador, PDF renderizado e inspeccionado, texto completo extraíble y diff --check. Cambio local del login que quitaba x-show conservado como parche /tmp/empiria-login-cambio-local.patch; directiva restaurada para evitar que la pantalla bloquee la aplicación. Eliminados enlaces con IDs privados de hojas en dos documentos antiguos; no se reescribe historial. Correcciones de Classroom y diagnóstico incluidas. La publicación demo y datos demo siguen separados de la integración real.
 
-Siguiente paso: publicar commits en main y comprobar Actions. Google Apps Script: usuario indicó haber copiado archivos, pero falta confirmar recorrido completo y versión /exec; no afirmar despliegue remoto verificado. Para retomar, consultar primero este estado vigente; las secciones siguientes conservan antecedentes.
+Publicación completada: main y origin/main incorporan 126987a; PR #1 fusionado por GitHub al incluir su historial. Actions del código publicado: https://github.com/p-poblete/empiria/actions/runs/42289363343 (en curso al escribir este resumen). Git local en main. Siguiente paso: comprobar resultado de Actions y recorrido final en Google. Google Apps Script: usuario indicó haber copiado archivos, pero falta confirmar recorrido completo y versión /exec; no afirmar despliegue remoto verificado. Para retomar, consultar primero este estado vigente; las secciones siguientes conservan antecedentes.
 
 # Estado de sesión — 2026-11-05
 
