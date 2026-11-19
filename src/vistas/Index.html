@@ -18,6 +18,10 @@
       document.documentElement.setAttribute('data-theme', tema === 'oscuro' ? 'dark' : 'light');
     })();
   </script>
+  <script>
+    // Invocación REST 1: parámetros consultados a Spring Boot en doGet.
+    window.EMPIRIA_CONFIG_INICIAL = <?!= configuracionInicial ?>;
+  </script>
 
 </head>
 <!-- FIN: Metadatos y recursos -->
@@ -77,6 +81,11 @@
           <button @click="$store.navegacion.navegar('reportes')" id="btn-reportes" aria-label="Reportes" title="Reportes" :aria-current="$store.navegacion.vistaActual === 'reportes' ? 'page' : null" :class="{ 'nav-activo font-semibold': $store.navegacion.vistaActual === 'reportes', 'text-slate-600 hover:bg-slate-100 hover:text-blue-700': $store.navegacion.vistaActual !== 'reportes' }" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all">
             <i class="fa-solid fa-chart-pie w-5 text-center"></i>
             <span class="font-medium text-sm">Reportes</span>
+          </button>
+
+          <button @click="$store.navegacion.navegar('configuracion')" id="btn-configuracion" aria-label="Configuración" title="Configuración" :aria-current="$store.navegacion.vistaActual === 'configuracion' ? 'page' : null" :class="{ 'nav-activo font-semibold': $store.navegacion.vistaActual === 'configuracion', 'text-slate-600 hover:bg-slate-100 hover:text-blue-700': $store.navegacion.vistaActual !== 'configuracion' }" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all">
+            <i class="fa-solid fa-sliders w-5 text-center"></i>
+            <span class="font-medium text-sm">Configuración</span>
           </button>
         </nav>
         
@@ -153,6 +162,7 @@
         <?!= include('Inicio'); ?>
         <?!= include('Ciclo'); ?>
         <?!= include('Clases'); ?>
+        <?!= include('Configuracion'); ?>
 
       </div>
     </main>
@@ -168,6 +178,7 @@
   <?!= include('Reactivos'); ?>
   <?!= include('AlpineTareas'); ?>
   <?!= include('AlpineReportes'); ?>
+  <?!= include('AlpineSistema'); ?>
   <?!= include('Navegacion'); ?>
 </body>
 </html>

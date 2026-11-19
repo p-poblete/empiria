@@ -4,7 +4,7 @@
 
 This repository contains the Spanish-language SGIU research and task management demo, implemented as a Google Apps Script web app. Files are organized by responsibility:
 
-- `src/servidor/`: `Código.gs` (web entry point and HTML inclusion), `TareasServidor.gs` (CU-002), `ReportesServidor.gs` (CU-005 queries), `Consolidados.gs` (Sheets exports), and `BaseDatos.gs` (demonstration data). Registro*.gs contains the separate real registration backend.
+- `src/servidor/`: `Código.gs` (web entry point and HTML inclusion), `TareasServidor.gs` (CU-002), `ReportesServidor.gs` (CU-005 queries), `Consolidados.gs` (Sheets exports), `BaseDatos.gs` (demonstration data), and `IntegracionSpring.gs` (REST calls to Spring Boot). Registro*.gs contains the separate real registration backend.
 - `src/vistas/`: `Index.html` and the HTML views and components included through Apps Script template expressions.
 - `src/scripts/Scripts.html`: browser JavaScript for demo sessions, cycles, tasks, templates, and reports.
 - `src/estilos/Estilos.html`: shared CSS and external Tailwind, Font Awesome, and Google Fonts dependencies.
@@ -13,7 +13,9 @@ This repository contains the Spanish-language SGIU research and task management 
 - `datos/`: reference spreadsheet.
 - `archivos/`: existing ZIP archive.
 
-Local verification lives in `tests/`. There is no application build step.
+- `servicios-rest/`: Spring Boot 4 / Java 21 REST services (system parameters and catalogs, in-memory, no database). See `docs/INTEGRACION_SPRING.md`.
+
+Local verification lives in `tests/`; Spring tests run with `cd servicios-rest && ./mvnw test`. There is no application build step.
 
 ## Build, Test, and Development Commands
 

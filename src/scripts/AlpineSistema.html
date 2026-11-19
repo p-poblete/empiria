@@ -1,0 +1,143 @@
+<!-- Estado reactivo de parámetros y catálogos servidos por Spring Boot. -->
+<script>
+  var CATALOGOS_SISTEMA = [
+    { nombre: 'facultades', titulo: 'Facultades', columnas: [['id', 'ID'], ['descripcion', 'Descripción'], ['siglas', 'Siglas']] },
+    { nombre: 'carreras', titulo: 'Carreras', columnas: [['id', 'ID'], ['descripcion', 'Descripción'], ['idFacultad', 'Facultad']] },
+    { nombre: 'planesEstudio', titulo: 'Planes de estudio', columnas: [['id', 'ID'], ['descripcion', 'Descripción'], ['idCarrera', 'Carrera'], ['anio', 'Año'], ['creditos', 'Créditos'], ['vigente', 'Vigente']] },
+    { nombre: 'lineasInvestigacion', titulo: 'Líneas de investigación', columnas: [['id', 'ID'], ['descripcion', 'Descripción'], ['idCarrera', 'Carrera']] },
+    { nombre: 'ciclosAcademicos', titulo: 'Ciclos académicos', columnas: [['id', 'ID'], ['descripcion', 'Descripción'], ['estado', 'Estado'], ['fechaInicio', 'Inicio'], ['fechaFin', 'Fin']] },
+    { nombre: 'categoriasDocente', titulo: 'Categorías docentes', columnas: [['id', 'ID'], ['descripcion', 'Descripción']] },
+    { nombre: 'dedicaciones', titulo: 'Dedicaciones', columnas: [['id', 'ID'], ['descripcion', 'Descripción']] },
+    { nombre: 'nivelesRenacyt', titulo: 'Niveles RENACYT', columnas: [['id', 'ID'], ['descripcion', 'Descripción']] },
+    { nombre: 'tiposActividad', titulo: 'Tipos de actividad', columnas: [['id', 'ID'], ['descripcion', 'Descripción']] }
+  ];
+
+  document.addEventListener('alpine:init', function() {
+    Alpine.store('sistema', {
+      parametros: [], version: null, actualizado: '', origen: '',
+      cargandoParametros: false, errorParametros: '',
+      borradores: {}, guardando: '', avisos: {},
+      catalogos: null, cargandoCatalogos: false, errorCatalogos: '', catalogoActivo: 'facultades',
+      definiciones: CATALOGOS_SISTEMA,
+
+      init: function() {
+        var inicial = window.EMPIRIA_CONFIG_INICIAL || { disponible: false, error: 'doGet no entregó configuración inicial.' };
+        if (inicial.disponible) this.aplicarParametros(inicial.datos, 'doGet');
+        else this.errorParametros = inicial.error || 'Servicio de parámetros no disponible.';
+      },
+
+      aplicarParametros: function(datos, origen) {
+        this.parametros = datos.parametros;
+        this.version = datos.version;
+        this.actualizado = datos.actualizado || '';
+        this.origen = origen;
+        this.errorParametros = '';
+        var borradores = {};
+        datos.parametros.forEach(function(p) { borradores[p.codigo] = p.valor; });
+        this.borradores = borradores;
+      },
+
+      valor: function(codigo) {
+        var p = this.parametros.find(function(item) { return item.codigo === codigo; });
+        return p ? p.valor : '';
+      },
+
+      get cicloVigente() {
+        var valor = this.valor('CICLO_VIGENTE');
+        return valor ? 'Ciclo ' + valor : '';
+      },
+
+      get grupos() {
+        var grupos = [];
+        this.parametros.forEach(function(p) {
+          var grupo = grupos.find(function(g) { return g.nombre === (p.grupo || 'General'); });
+          if (!grupo) grupos.push(grupo = { nombre: p.grupo || 'General', parametros: [] });
+          grupo.parametros.push(p);
+        });
+        return grupos;
+      },
+
+      get origenTexto() {
+        if (!this.origen) return '';
+        var fecha = this.actualizado ? new Date(this.actualizado) : null;
+        return (this.origen === 'doGet' ? 'Consultados en doGet al ingresar' : 'Consultados de nuevo desde la vista') +
+          ' · versión ' + this.version + (fecha && !isNaN(fecha) ? ' · modificados ' + fecha.toLocaleString('es-PE') : '');
+      },
+
+      cambiado: function(codigo) {
+        return this.borradores[codigo] !== this.valor(codigo);
+      },
+
+      recargarParametros: async function() {
+        if (this.cargandoParametros) return;
+        this.cargandoParametros = true;
+        try {
+          this.aplicarParametros(await llamarServidor('obtenerParametrosSistema', []), 'vista');
+          this.avisos = {};
+        } catch (error) {
+          this.errorParametros = String(error.message || error);
+        } finally {
+          this.cargandoParametros = false;
+        }
+      },
+
+      // Invocación REST 2: PUT /api/parametros/{codigo}.
+      guardar: async function(codigo) {
+        if (this.guardando || !this.cambiado(codigo)) return;
+        this.guardando = codigo;
+        this.avisos[codigo] = null;
+        try {
+          var actualizado = await llamarServidor('actualizarParametroSistema', [codigo, String(this.borradores[codigo])]);
+          var indice = this.parametros.findIndex(function(p) { return p.codigo === codigo; });
+          if (indice >= 0) this.parametros.splice(indice, 1, actualizado);
+          this.borradores[codigo] = actualizado.valor;
+          this.avisos[codigo] = { tipo: 'ok', texto: 'Guardado en Spring Boot.' };
+        } catch (error) {
+          this.avisos[codigo] = { tipo: 'error', texto: String(error.message || error) };
+        } finally {
+          this.guardando = '';
+        }
+      },
+
+      descartar: function(codigo) {
+        this.borradores[codigo] = this.valor(codigo);
+        this.avisos[codigo] = null;
+      },
+
+      // Invocación REST 3: GET /api/catalogos. Nunca lanza; devuelve null si falla.
+      cargarCatalogos: function(forzar) {
+        if (this._promesa && !forzar) return this._promesa;
+        if (this.catalogos && !forzar) return Promise.resolve(this.catalogos);
+        var sistema = this;
+        this.cargandoCatalogos = true;
+        this.errorCatalogos = '';
+        this._promesa = llamarServidor('obtenerCatalogosSistema', []).then(function(datos) {
+          sistema.catalogos = datos;
+          return datos;
+        }).catch(function(error) {
+          sistema.errorCatalogos = String(error.message || error);
+          return null;
+        }).finally(function() {
+          sistema.cargandoCatalogos = false;
+          sistema._promesa = null;
+        });
+        return this._promesa;
+      },
+
+      catalogo: function(nombre) {
+        return this.catalogos && Array.isArray(this.catalogos[nombre]) ? this.catalogos[nombre] : [];
+      },
+
+      get definicionActiva() {
+        var activo = this.catalogoActivo;
+        return this.definiciones.find(function(d) { return d.nombre === activo; });
+      },
+
+      celda: function(item, campo) {
+        var valor = item[campo];
+        if (typeof valor === 'boolean') return valor ? 'Sí' : 'No';
+        return valor == null || valor === '' ? '—' : String(valor);
+      }
+    });
+  });
+</script>

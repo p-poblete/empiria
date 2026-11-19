@@ -26,7 +26,7 @@ function servidorDemo(opciones = {}) {
   return contexto;
 }
 
-function paginaCompuesta() {
+function paginaCompuesta(opciones = {}) {
   const archivos = {};
   ['vistas', 'scripts', 'estilos'].forEach(carpeta => {
     fs.readdirSync(path.join(raiz, 'src', carpeta)).filter(nombre => nombre.endsWith('.html')).forEach(nombre => {
@@ -37,7 +37,9 @@ function paginaCompuesta() {
     if (!archivos[nombre]) throw new Error('Inclusión inexistente: ' + nombre);
     return archivos[nombre].replace(/<\?!= include\('([^']+)'\); \?>/g, (_, hijo) => incluir(hijo));
   }
-  return incluir('Index');
+  // doGet inyecta la configuración inicial de Spring; localmente se indica su ausencia.
+  const inicial = opciones.configuracionInicial || { disponible: false, origen: 'doGet', error: 'Vista local sin servicios Spring configurados.' };
+  return incluir('Index').replace('<?!= configuracionInicial ?>', () => JSON.stringify(inicial).replace(/</g, '\\u003c'));
 }
 
 module.exports = { servidorDemo, paginaCompuesta, AHORA, raiz };

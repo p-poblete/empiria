@@ -1,0 +1,122 @@
+        <!-- VISTA CONFIGURACIÓN: parámetros y catálogos desde Spring Boot -->
+
+<!-- INICIO: view-configuracion -->
+        <div id="view-configuracion" x-cloak x-show="$store.navegacion.vistaActual === 'configuracion'" class="view-panel fade-in space-y-6">
+
+          <!-- Parámetros del sistema: GET en doGet, PUT al guardar -->
+          <section class="glass-card rounded-2xl p-6 space-y-4" aria-labelledby="titulo-parametros">
+            <div class="flex flex-wrap justify-between items-start gap-3">
+              <div>
+                <h2 id="titulo-parametros" class="text-lg font-bold text-slate-900">Parámetros del sistema</h2>
+                <p class="text-xs text-slate-600 mt-0.5">Servicio REST <code>/api/parametros</code> de Spring Boot. Los cambios se guardan en memoria del servicio.</p>
+                <p id="parametros-origen" class="text-xs text-blue-700 mt-1" x-show="$store.sistema.origen" x-text="$store.sistema.origenTexto"></p>
+              </div>
+              <button id="btn-recargar-parametros" type="button" @click="$store.sistema.recargarParametros()" :disabled="$store.sistema.cargandoParametros" class="glass-input px-4 py-2 rounded-xl text-sm font-medium text-slate-700 border border-slate-200 flex items-center gap-2 disabled:opacity-50">
+                <i class="fa-solid fa-rotate" :class="{ 'fa-spin': $store.sistema.cargandoParametros }" aria-hidden="true"></i>
+                <span>Consultar de nuevo</span>
+              </button>
+            </div>
+
+            <div id="parametros-error" role="alert" x-show="$store.sistema.errorParametros" class="rounded-xl border border-red-300 bg-red-50 text-red-800 text-sm px-4 py-3">
+              <strong>No se pudieron obtener los parámetros.</strong>
+              <span x-text="$store.sistema.errorParametros"></span>
+            </div>
+
+            <template x-for="grupo in $store.sistema.grupos" :key="grupo.nombre">
+              <div class="space-y-2">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500" x-text="grupo.nombre"></h3>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm">
+                    <thead class="sr-only"><tr><th>Código</th><th>Valor</th><th>Acciones</th></tr></thead>
+                    <tbody>
+                      <template x-for="p in grupo.parametros" :key="p.codigo">
+                        <tr class="border-t border-slate-200 align-top" :data-parametro="p.codigo">
+                          <td class="py-3 pr-4 w-1/2">
+                            <code class="text-xs font-bold text-slate-900" x-text="p.codigo"></code>
+                            <p class="text-xs text-slate-600 mt-0.5" x-text="p.descripcion"></p>
+                          </td>
+                          <td class="py-3 pr-4">
+                            <template x-if="p.editable">
+                              <div class="flex items-center gap-2">
+                                <input class="glass-input rounded-lg px-3 py-1.5 text-sm w-full border border-slate-200" :aria-label="'Valor de ' + p.codigo"
+                                  :type="p.tipo === 'ENTERO' ? 'number' : (p.tipo === 'FECHA' ? 'date' : 'text')"
+                                  :min="p.minimo" :max="p.maximo" maxlength="200"
+                                  x-model="$store.sistema.borradores[p.codigo]"
+                                  @keydown.enter="$store.sistema.guardar(p.codigo)"
+                                  :disabled="$store.sistema.guardando === p.codigo">
+                                <span class="text-xs text-slate-500 whitespace-nowrap" x-show="p.unidad" x-text="p.unidad"></span>
+                              </div>
+                            </template>
+                            <template x-if="!p.editable">
+                              <div><span class="font-semibold text-slate-900" x-text="p.valor"></span> <span class="text-[10px] uppercase font-bold text-slate-500 ml-1">solo lectura</span></div>
+                            </template>
+                            <p class="text-xs mt-1" x-show="$store.sistema.avisos[p.codigo]" :class="$store.sistema.avisos[p.codigo] && $store.sistema.avisos[p.codigo].tipo === 'ok' ? 'text-emerald-700' : 'text-red-700'" x-text="$store.sistema.avisos[p.codigo] ? $store.sistema.avisos[p.codigo].texto : ''" role="status"></p>
+                          </td>
+                          <td class="py-3 whitespace-nowrap text-right">
+                            <template x-if="p.editable">
+                              <div class="flex justify-end gap-2">
+                                <button type="button" @click="$store.sistema.descartar(p.codigo)" x-show="$store.sistema.cambiado(p.codigo)" class="text-xs text-slate-600 px-2 py-1.5">Descartar</button>
+                                <button type="button" @click="$store.sistema.guardar(p.codigo)" :disabled="!$store.sistema.cambiado(p.codigo) || !!$store.sistema.guardando" class="boton-primario text-xs font-bold px-3 py-1.5 rounded-lg disabled:opacity-40" :aria-label="'Guardar ' + p.codigo">
+                                  <span x-text="$store.sistema.guardando === p.codigo ? 'Guardando…' : 'Guardar'"></span>
+                                </button>
+                              </div>
+                            </template>
+                          </td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </template>
+          </section>
+
+          <!-- Catálogos: GET al entrar en esta vista o en Reportes -->
+          <section class="glass-card rounded-2xl p-6 space-y-4" aria-labelledby="titulo-catalogos">
+            <div class="flex flex-wrap justify-between items-start gap-3">
+              <div>
+                <h2 id="titulo-catalogos" class="text-lg font-bold text-slate-900">Catálogos de datos</h2>
+                <p class="text-xs text-slate-600 mt-0.5">Servicio REST <code>/api/catalogos</code>. Carreras y líneas también alimentan los filtros de Reportes.</p>
+              </div>
+              <button id="btn-recargar-catalogos" type="button" @click="$store.sistema.cargarCatalogos(true)" :disabled="$store.sistema.cargandoCatalogos" class="glass-input px-4 py-2 rounded-xl text-sm font-medium text-slate-700 border border-slate-200 flex items-center gap-2 disabled:opacity-50">
+                <i class="fa-solid fa-rotate" :class="{ 'fa-spin': $store.sistema.cargandoCatalogos }" aria-hidden="true"></i>
+                <span>Actualizar catálogos</span>
+              </button>
+            </div>
+
+            <div id="catalogos-error" role="alert" x-show="$store.sistema.errorCatalogos" class="rounded-xl border border-red-300 bg-red-50 text-red-800 text-sm px-4 py-3">
+              <strong>No se pudieron obtener los catálogos.</strong>
+              <span x-text="$store.sistema.errorCatalogos"></span>
+            </div>
+            <p class="text-sm text-slate-600" x-show="$store.sistema.cargandoCatalogos && !$store.sistema.catalogos">Consultando catálogos…</p>
+
+            <div x-show="$store.sistema.catalogos" class="space-y-4">
+              <div class="flex flex-wrap gap-2" role="tablist" aria-label="Catálogos">
+                <template x-for="d in $store.sistema.definiciones" :key="d.nombre">
+                  <button type="button" role="tab" :aria-selected="String($store.sistema.catalogoActivo === d.nombre)" @click="$store.sistema.catalogoActivo = d.nombre"
+                    :class="{ 'active': $store.sistema.catalogoActivo === d.nombre }" class="filtro-pill glass-input px-3 py-1.5 rounded-full text-xs font-medium text-slate-700 border border-slate-200">
+                    <span x-text="d.titulo"></span> <span class="opacity-60" x-text="'(' + $store.sistema.catalogo(d.nombre).length + ')'"></span>
+                  </button>
+                </template>
+              </div>
+              <div class="overflow-x-auto" role="tabpanel">
+                <table id="tabla-catalogo" class="w-full text-sm">
+                  <thead>
+                    <tr class="text-left text-xs uppercase text-slate-500">
+                      <template x-for="c in $store.sistema.definicionActiva.columnas" :key="c[0]"><th class="py-2 pr-4" x-text="c[1]"></th></template>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="item in $store.sistema.catalogo($store.sistema.catalogoActivo)" :key="item.id">
+                      <tr class="border-t border-slate-200">
+                        <template x-for="c in $store.sistema.definicionActiva.columnas" :key="c[0]"><td class="py-2 pr-4" x-text="$store.sistema.celda(item, c[0])"></td></template>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+
+<!-- FIN: view-configuracion -->

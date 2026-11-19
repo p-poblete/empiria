@@ -43,6 +43,9 @@
           var respuesta = await llamarServidor('obtenerDatosReportes', [{ condicion: condicion }]);
           if (solicitud !== this.solicitud) return;
           if (!respuesta || !Array.isArray(respuesta.investigadores)) throw new Error('ESTRUCTURA: respuesta de reportes inválida.');
+          // Catálogos de Spring para los filtros; si fallan, se usan los datos.
+          await Alpine.store('sistema').cargarCatalogos();
+          if (solicitud !== this.solicitud) return;
           this.datos = respuesta;
           renderizarVistaReportes(respuesta);
           await Alpine.nextTick();

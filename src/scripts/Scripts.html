@@ -16,6 +16,9 @@
       // inesperado se marcan como Fallido y quedan registradas en auditoría.
       rescatarTransaccionesColgadas();
 
+      // CICLO_VIGENTE de Spring (consultado en doGet) define el ciclo inicial.
+      var vigente = cicloInicialSistema();
+      if (vigente !== cicloReporte()) selectCiclo(vigente, 'ACTIVO');
       renderizarPlantillas();
       Alpine.store('tareas').cargarPlantillas();
 
@@ -39,7 +42,7 @@
     cancelarFormulario();
     Alpine.store('navegacion').sesionIniciada = false;
     cicloEstadoActual = 'ACTIVO';
-    selectCiclo('Ciclo 2026-II', 'ACTIVO');
+    selectCiclo(cicloInicialSistema(), 'ACTIVO');
     switchTab('inicio');
   }
 
@@ -53,6 +56,12 @@
   };
 
   var cicloEstadoActual = 'ACTIVO';
+
+  // Solo se acepta un ciclo vigente que exista en el selector; si no, el predeterminado.
+  function cicloInicialSistema() {
+    var vigente = Alpine.store('sistema').cicloVigente;
+    return vigente && document.querySelector('#ciclo-dropdown [data-ciclo="' + CSS.escape(vigente) + '"]') ? vigente : 'Ciclo 2026-II';
+  }
   var filtroPlantillasActual = 'todas';
   // Espera simulada de la publicación en curso (pasos 35 a 38 y reintentos de FA-016).
   var temporizadorTarea = null;
@@ -217,7 +226,8 @@
     clases: { subtitulo: 'Clases de investigación y vinculación con Google Classroom.', titulo: 'Módulo de Clases' },
     plantillas: { subtitulo: 'Documentos base para tus actividades de seguimiento.', titulo: 'Módulo de Plantillas Base', alEntrar: renderizarPlantillas },
     tareas: { subtitulo: 'Gestión e integración con Google Classroom.', titulo: 'Módulo de Tareas', alEntrar: function() { actualizarUICiclo(); Alpine.store('tareas').cargarPlantillas(); } },
-    reportes: { subtitulo: 'Indicadores y producción científica de los investigadores.', titulo: 'Módulo de Reportes de Investigación', alEntrar: inicializarModuloReportes }
+    reportes: { subtitulo: 'Indicadores y producción científica de los investigadores.', titulo: 'Módulo de Reportes de Investigación', alEntrar: inicializarModuloReportes },
+    configuracion: { subtitulo: 'Parámetros y catálogos servidos por Spring Boot.', titulo: 'Configuración del sistema', alEntrar: function() { Alpine.store('sistema').cargarCatalogos(); } }
   };
 
   // Puente para los flujos existentes; Alpine es el único dueño de la vista activa.
@@ -450,6 +460,20 @@
     return unicosReporte(inv.lineas || [inv.linea1, inv.linea2]);
   }
 
+  // Invocación REST 3: las opciones de carrera y línea provienen del catálogo de
+  // Spring cuando está disponible; si no, de los valores presentes en los datos.
+  function opcionesCatalogoReporte(nombre, respaldo, filtro) {
+    var lista = Alpine.store('sistema').catalogo(nombre);
+    if (!lista.length) return respaldo;
+    return unicosReporte(lista.filter(filtro || function() { return true; }).map(function(item) { return item.descripcion; }));
+  }
+
+  function lineasCatalogoReporte(carrera, respaldo) {
+    if (!carrera) return opcionesCatalogoReporte('lineasInvestigacion', respaldo);
+    var item = Alpine.store('sistema').catalogo('carreras').find(function(c) { return c.descripcion === carrera; });
+    return item ? opcionesCatalogoReporte('lineasInvestigacion', respaldo, function(l) { return l.idCarrera === item.id; }) : respaldo;
+  }
+
   function llenarSelectReporte(id, opciones, etiquetaTodos) {
     Alpine.store('reportes').llenarSelector(id, opciones, etiquetaTodos);
   }
@@ -465,7 +489,7 @@
     Alpine.store('reportes').datos = { investigadores: data.investigadores };
     actualizarAvisoReportesCerrado();
     iniciarFiltrosInvestigador();
-    llenarSelectReporte('carrera-select', unicosReporte(investigadoresReporte().map(function(inv) { return inv.carrera; })), 'Todas las carreras');
+    llenarSelectReporte('carrera-select', opcionesCatalogoReporte('carreras', unicosReporte(investigadoresReporte().map(function(inv) { return inv.carrera; }))), 'Todas las carreras');
     filtrarInvestigadoresReporte();
     cambiarCarreraReporte();
     cambiarSubmoduloReportes(Alpine.store('navegacion').reporteActual);
@@ -544,7 +568,7 @@
     var lista = investigadoresReporte().filter(function(inv) { return !valorReporte('carrera-select') || inv.carrera === valorReporte('carrera-select'); });
     var lineas = [];
     lista.forEach(function(inv) { lineas = lineas.concat(lineasInvestigador(inv)); });
-    llenarSelectReporte('carrera-linea', unicosReporte(lineas), 'Todas las líneas');
+    llenarSelectReporte('carrera-linea', lineasCatalogoReporte(valorReporte('carrera-select'), unicosReporte(lineas)), 'Todas las líneas');
     cambiarLineaReporte();
   }
 
@@ -1520,7 +1544,10 @@
         var valor = clave === 'linea' ? lineasInvestigador(inv) : inv[filtrosGeneralesInv[clave]];
         valores = valores.concat(valor || []);
       });
-      llenarSelectReporte('inv-filtro-' + clave, unicosReporte(valores), 'Todos');
+      valores = unicosReporte(valores);
+      if (clave === 'carrera') valores = opcionesCatalogoReporte('carreras', valores);
+      if (clave === 'linea') valores = opcionesCatalogoReporte('lineasInvestigacion', valores);
+      llenarSelectReporte('inv-filtro-' + clave, valores, 'Todos');
     });
     var ciclos = [];
     investigadoresReporte().forEach(function(inv) {

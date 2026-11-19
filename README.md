@@ -36,7 +36,11 @@ Al copiar esta versión al editor de Apps Script, incluye los HTML `Navegacion`,
 
 La explicación del funcionamiento está disponible en [Markdown](docs/EXPLICACION_ENTREGA_ALPINE.md) y [PDF](docs/EXPLICACION_ENTREGA_ALPINE.pdf): arquitectura, navegación, puente con Apps Script, carga, recorrido de ambos CUs y preguntas individuales.
 
-El servidor está separado en `Código.gs`, `TareasServidor.gs`, `ReportesServidor.gs`, `Consolidados.gs` y `BaseDatos.gs`. Para preparar los cinco GS y veinte HTML con nombres únicos, ejecuta `node scripts/preparar-entrega-alpine.cjs` y sigue la [lista de instalación](docs/ENTREGA_ALPINE.md). Reemplaza también Código.gs para evitar funciones duplicadas.
+El servidor está separado en `Código.gs`, `TareasServidor.gs`, `ReportesServidor.gs`, `Consolidados.gs`, `BaseDatos.gs` e `IntegracionSpring.gs`. Para preparar los seis GS y veintidós HTML con nombres únicos, ejecuta `node scripts/preparar-entrega-alpine.cjs` y sigue la [lista de instalación](docs/ENTREGA_ALPINE.md). Reemplaza también Código.gs para evitar funciones duplicadas.
+
+## Integración con Spring Boot
+
+`servicios-rest/` contiene los servicios REST de parámetros y catálogos (Spring Boot 4, Java 21). Apps Script los invoca desde `doGet`, la vista Configuración y Reportes. Ver [la guía de integración](docs/INTEGRACION_SPRING.md) para ejecutarlos en Codespaces y configurar la URL.
 
 ## Pruebas locales
 

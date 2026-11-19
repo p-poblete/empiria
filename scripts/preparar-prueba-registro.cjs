@@ -94,6 +94,6 @@ fs.writeFileSync(path.join(destino, 'EmpiriaRegistro.gs'), codigo + '\n' + arran
 fs.writeFileSync(path.join(destino, 'manifest-requerido.json'), JSON.stringify({
   timeZone: 'America/Lima', runtimeVersion: 'V8',
   dependencies: { enabledAdvancedServices: [{ userSymbol: 'Classroom', serviceId: 'classroom', version: 'v1' }] },
-  oauthScopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/classroom.rosters.readonly', 'https://www.googleapis.com/auth/classroom.profile.emails', 'https://www.googleapis.com/auth/classroom.coursework.students']
+  oauthScopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/classroom.rosters.readonly', 'https://www.googleapis.com/auth/classroom.profile.emails', 'https://www.googleapis.com/auth/classroom.coursework.students', 'https://www.googleapis.com/auth/script.external_request']
 }, null, 2) + '\n', { mode: 0o600 });
 console.log(destino);

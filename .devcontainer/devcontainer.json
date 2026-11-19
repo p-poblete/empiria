@@ -1,0 +1,12 @@
+{
+  "name": "Empiria · servicios REST",
+  "image": "mcr.microsoft.com/devcontainers/java:1-21-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": { "label": "Spring Boot (Empiria)", "onAutoForward": "notify" }
+  },
+  "postCreateCommand": "cd servicios-rest && ./mvnw -q -B -DskipTests package"
+}

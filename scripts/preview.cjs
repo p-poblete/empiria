@@ -3,6 +3,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const { randomUUID } = require('node:crypto');
+const { execFileSync } = require('node:child_process');
 const { servidorDemo, paginaCompuesta } = require('../tests/soporte.cjs');
 const puerto = Number(process.env.EMPIRIA_PUERTO || 4173);
 const latencia = Number(process.env.EMPIRIA_LATENCIA_MS || 500);
@@ -10,9 +11,27 @@ if (!Number.isInteger(puerto) || puerto < 1024 || puerto > 65535 || !Number.isFi
 const origen = 'http://127.0.0.1:' + puerto;
 const libros = new Map();
 const propiedades = new Map();
+// Spring local (servicios-rest: ./mvnw spring-boot:run). Cambiar con EMPIRIA_SPRING_URL.
+propiedades.set('SPRING_BASE_URL', process.env.EMPIRIA_SPRING_URL || 'http://127.0.0.1:8080');
+if (process.env.EMPIRIA_SPRING_TOKEN) propiedades.set('SPRING_TOKEN', process.env.EMPIRIA_SPRING_TOKEN);
+// UrlFetchApp síncrono como en Apps Script, mediante curl.
+function fetchLocal(url, opciones = {}) {
+  const args = ['-sS', '--max-time', '5', '-X', (opciones.method || 'get').toUpperCase(), '-w', '\n%{http_code}'];
+  Object.entries(opciones.headers || {}).forEach(([k, v]) => args.push('-H', k + ': ' + v));
+  if (opciones.contentType) args.push('-H', 'Content-Type: ' + opciones.contentType);
+  if (opciones.payload != null) args.push('--data-binary', String(opciones.payload));
+  let salida;
+  try { salida = execFileSync('curl', [...args, '--', url], { encoding: 'utf8' }); }
+  catch (error) { throw new Error('Sin conexión con ' + url + '.'); }
+  const corte = salida.lastIndexOf('\n');
+  const cuerpo = salida.slice(0, corte), codigo = Number(salida.slice(corte + 1));
+  return { getResponseCode: () => codigo, getContentText: () => cuerpo };
+}
 function urlLibro(id) { return origen + '/consolidado/' + id; }
 const servicios = {
-  PropertiesService: { getScriptProperties: () => ({ getProperty: k => propiedades.get(k) || null, setProperty: (k, v) => propiedades.set(k, v) }) },
+  PropertiesService: { getScriptProperties: () => ({ getProperty: k => propiedades.get(k) || null, setProperty: (k, v) => propiedades.set(k, v), deleteProperty: k => propiedades.delete(k) }) },
+  UrlFetchApp: { fetch: fetchLocal },
+  Logger: { log() {} },
   DriveApp: { getFileById: id => { if (!libros.has(id)) throw new Error('Archivo local inexistente.'); return { getUrl: () => urlLibro(id) }; } },
   SpreadsheetApp: { create: nombre => {
     const id = randomUUID();
@@ -25,7 +44,7 @@ const servicios = {
   } }
 };
 const backend = servidorDemo({ relojReal: true, servicios });
-const metodos = new Set(['obtenerPlantillasTarea', 'publicarActividadDemo', 'cancelarActividadDemo', 'obtenerDatosReportes', 'obtenerConsolidadoCiclo']);
+const metodos = new Set(['obtenerPlantillasTarea', 'publicarActividadDemo', 'cancelarActividadDemo', 'obtenerDatosReportes', 'obtenerConsolidadoCiclo', 'obtenerParametrosSistema', 'actualizarParametroSistema', 'obtenerCatalogosSistema']);
 const puente = `<script>
 (function() {
   function runner(exito, fallo) {
@@ -57,7 +76,8 @@ const servidor = http.createServer(async (req, res) => {
     if (req.method === 'GET' && ruta === '/') {
       // Se recompone al recargar para recoger cambios en los HTML del proyecto.
       const aviso = '<div style="position:fixed;bottom:8px;right:8px;z-index:100;background:#fff4cc;color:#513b00;padding:6px 10px;border:1px solid #d6b75a;border-radius:6px;font:12px sans-serif;pointer-events:none">Vista local · Google simulado · datos temporales</div>';
-      const html = paginaCompuesta().replace('</head>', puente + '</head>')
+      // Equivale a doGet: consulta los parámetros a Spring en cada carga.
+      const html = paginaCompuesta({ configuracionInicial: backend.cargarConfiguracionInicial_() }).replace('</head>', puente + '</head>')
         .replace('https://cdn.jsdelivr.net/npm/alpinejs@3.17.5/dist/cdn.min.js', '/alpine.js')
         .replace('<title>Empiria · Gestión de investigación</title>', '<title>Empiria · Vista local</title>')
         .replace('</body>', aviso + '</body>');

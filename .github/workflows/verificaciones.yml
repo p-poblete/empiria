@@ -34,3 +34,18 @@ jobs:
           name: capturas-alpine
           path: ${{ runner.temp }}/empiria-capturas
           if-no-files-found: ignore
+
+  servicios-rest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: servicios-rest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: ./mvnw -B test

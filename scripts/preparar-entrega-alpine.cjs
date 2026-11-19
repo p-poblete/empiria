@@ -9,15 +9,15 @@ const raiz = path.resolve(__dirname, '..');
 const destino = fs.mkdtempSync(path.join(os.tmpdir(), 'empiria-entrega-alpine-'));
 const html = paginaCompuesta();
 assert.equal(html.includes('<?'), false, 'Quedó una inclusión sin resolver');
-for (const modulo of ['navegacion', 'tareas', 'reportes']) {
+for (const modulo of ['navegacion', 'tareas', 'reportes', 'sistema']) {
   assert.ok(html.includes("Alpine.store('" + modulo + "'"), 'Falta store ' + modulo);
 }
-for (const nombre of ['Código.gs', 'TareasServidor.gs', 'ReportesServidor.gs', 'Consolidados.gs', 'BaseDatos.gs']) {
+for (const nombre of ['Código.gs', 'TareasServidor.gs', 'ReportesServidor.gs', 'Consolidados.gs', 'BaseDatos.gs', 'IntegracionSpring.gs']) {
   const codigo = fs.readFileSync(path.join(raiz, 'src/servidor', nombre), 'utf8');
   new vm.Script(codigo, { filename: nombre });
   fs.writeFileSync(path.join(destino, nombre), codigo);
 }
-const nombres = new Set(['Código', 'TareasServidor', 'ReportesServidor', 'Consolidados', 'BaseDatos']);
+const nombres = new Set(['Código', 'TareasServidor', 'ReportesServidor', 'Consolidados', 'BaseDatos', 'IntegracionSpring']);
 for (const carpeta of ['vistas', 'scripts', 'estilos']) {
   for (const nombre of fs.readdirSync(path.join(raiz, 'src', carpeta)).filter(n => n.endsWith('.html') && n !== 'Demostracion.html')) {
     assert.equal(nombres.has(path.parse(nombre).name), false, 'Nombre duplicado: ' + nombre);

@@ -1,6 +1,9 @@
 // INICIO: Entrada de la aplicación web
 function doGet() {
-  return HtmlService.createTemplateFromFile("Index")
+  var plantilla = HtmlService.createTemplateFromFile("Index");
+  // Invocación REST 1: parámetros del sistema desde Spring Boot al ingresar.
+  plantilla.configuracionInicial = jsonParaHtml_(cargarConfiguracionInicial_());
+  return plantilla
     .evaluate()
     .setTitle("Empiria · Gestión de investigación")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
