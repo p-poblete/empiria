@@ -2,6 +2,8 @@
 
 Actividad del curso: tres invocaciones desde el proyecto Apps Script hacia servicios REST de Spring Boot que devuelven objetos predeterminados, sin base de datos.
 
+Resumen para el equipo, con cumplimiento de la consigna y guion para la clase: [PDF](INTEGRACION_SPRING_RESUMEN.pdf) ([fuente LaTeX](INTEGRACION_SPRING_RESUMEN.tex)).
+
 ## Las tres invocaciones
 
 | # | Disparador en Apps Script | Función `.gs` | Servicio REST | Uso en la interfaz |

@@ -1,0 +1,145 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=18mm,headheight=15pt]{geometry}
+\usepackage{lmodern,microtype,xcolor,tikz,tcolorbox,tabularx,array,fancyhdr}
+\usetikzlibrary{arrows.meta,positioning}
+\definecolor{ink}{HTML}{183149}
+\definecolor{blue}{HTML}{2463A6}
+\definecolor{teal}{HTML}{087E83}
+\definecolor{purple}{HTML}{7449A8}
+\definecolor{amber}{HTML}{A65B12}
+\definecolor{light}{HTML}{F2F5F8}
+\renewcommand{\familydefault}{\sfdefault}
+\color{ink}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{\small\textbf{EMPIRIA} / Integración Apps Script + Spring Boot}\fancyfoot[L]{\small Resumen para el equipo · GCC}\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\newcommand{\titulo}[3]{\textcolor{teal}{\small\textbf{#1}}\par{\LARGE\bfseries #2}\par\vspace{2mm}#3\par\vspace{3mm}}
+\newcommand{\paso}[4]{\begin{tcolorbox}[colback=#1!5!white,colframe=#1!40!white,boxrule=0.5pt,arc=2mm,left=3mm,right=3mm,top=2mm,bottom=2mm,before upper=\raggedright]\textcolor{#1}{\textbf{#2}}\par\textbf{#3}\par #4\end{tcolorbox}}
+\newcommand{\nota}[2]{\begin{tcolorbox}[colback=amber!8!white,colframe=amber!40!white,boxrule=0.5pt,arc=2mm,before upper=\raggedright]\textcolor{amber}{\textbf{#1}} #2\end{tcolorbox}}
+\newcommand{\archivo}[1]{\textbf{#1}}
+\newcommand{\met}[1]{\texttt{#1}}
+\newcommand{\cod}[1]{\texttt{#1}}
+\begin{document}
+\raggedright
+\titulo{01 / RESUMEN}{Tres invocaciones REST desde Empiria}{Actividad: Integración de Apps Script con Spring Boot. Rama \cod{feat/integracion-spring} del repositorio Empiria.}
+
+\begin{center}
+\begin{tikzpicture}[node distance=15mm,>=Latex,every node/.style={font=\small,align=center},box/.style={draw,rounded corners=3mm,text width=36mm,minimum height=20mm,inner sep=2mm}]
+\node[box,fill=blue!7,draw=blue] (v) {\textbf{VISTA}\\Inicio, Configuración,\\Plantillas, Reportes\\(Alpine)};
+\node[box,fill=purple!7,draw=purple,right=of v] (g) {\textbf{APPS SCRIPT}\\{\footnotesize\cod{IntegracionSpring.gs}}\\\cod{UrlFetchApp}};
+\node[box,fill=teal!7,draw=teal,right=of g] (s) {\textbf{SPRING BOOT}\\\cod{servicios-rest/}\\Codespaces · puerto 8080};
+\draw[->,thick,blue] (v)--node[above,font=\scriptsize,align=center]{google.\\script.run}(g);
+\draw[->,thick,purple] (g)--node[above,font=\scriptsize,align=center]{HTTPS\\JSON}(s);
+\end{tikzpicture}
+\end{center}
+
+\textbf{Cómo cumplimos la consigna}\par
+\renewcommand{\arraystretch}{1.35}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{58mm} >{\raggedright\arraybackslash}X}
+\hline
+\textbf{Requisito del profesor} & \textbf{Cumplimiento} \\ \hline
+3 invocaciones desde Apps Script a servicios REST de Spring Boot & GET parámetros, PUT parámetro y GET catálogos (detalle en la página 2). \\
+Usar el código de ejemplo del 13 de noviembre & \cod{execGet} y \cod{execPost} se conservan y se añade \cod{execPut}. Se corrigió el \cod{catch} del ejemplo, que usaba la variable inexistente \cod{path}. \\
+Retornar objetos predeterminados, sin base de datos & Valores fijos en memoria en \cod{ServicioParametros} y \cod{ServicioCatalogos}. \\
+Consulta de parámetros del sistema & 3 parámetros propios de Empiria: \cod{CICLO\_VIGENTE}, \cod{ID\_CARPETA\_PLANTILLAS}, \cod{ID\_HOJA\_BASE\_DATOS}. \\
+Funcionalidad para actualizar parámetros & \cod{PUT /api/parametros/\{codigo\}} desde la vista Configuración, con validación en Spring. \\
+Catálogos (ID + descripción): carreras, facultades, planes de estudio, líneas & \cod{GET /api/catalogos}: esos 4 más ciclos, categorías docentes, dedicaciones, niveles RENACYT y tipos de actividad. \\
+Invocación desde un evento de una vista o desde \cod{doGet} & Invocación 1 en \cod{doGet}; la 2, al pulsar Guardar; la 3, al entrar en Reportes o Configuración. \\
+Relevancia y completitud de los datos & Cada parámetro indica su caso de uso (CU-002 o CU-005). Los catálogos traen sus relaciones (\cod{idFacultad}, \cod{idCarrera}) y la app los usa en filtros reales. \\ \hline
+\end{tabularx}
+
+\nota{Decisión de alcance.}{Los parámetros de carga docente (\cod{MIN\_HORAS\_DOCENTE}, \cod{MAX\_HORAS\_DOCENTE}) corresponden al sistema de otro grupo. Por eso usamos parámetros de nuestros casos de uso: ciclo vigente, carpeta de plantillas (CU-002) y libro de base de datos (CU-005).}
+\newpage
+
+\titulo{02 / LAS TRES INVOCACIONES}{Qué se llama, cuándo y para qué}{Las tres pasan por \cod{IntegracionSpring.gs}. La URL de Spring se guarda en Propiedades del script (\cod{SPRING\_BASE\_URL}), no en el código.}
+
+\paso{purple}{INVOCACIÓN 1 · AL INGRESAR}{\cod{doGet()} $\rightarrow$ \cod{cargarConfiguracionInicial\_()} $\rightarrow$ \cod{GET /api/parametros}}{\cod{Código.gs} consulta los parámetros antes de construir la página y los inyecta en \cod{Index.html} como \cod{EMPIRIA\_CONFIG\_INICIAL}. \cod{CICLO\_VIGENTE} fija el ciclo inicial. La vista Configuración muestra «Consultados en doGet al ingresar». Si Spring no responde, la app abre igual y avisa del motivo.}
+\paso{blue}{INVOCACIÓN 2 · EVENTO DE VISTA}{Botón Guardar $\rightarrow$ \cod{actualizarParametroSistema()} $\rightarrow$ \cod{PUT /api/parametros/\{codigo\}}}{Desde Configuración se edita \cod{ID\_CARPETA\_PLANTILLAS} o \cod{ID\_HOJA\_BASE\_DATOS}. Spring valida el formato del ID de Drive, que no se modifique un parámetro de solo lectura y que los dos IDs sean distintos; si algo falla, responde 400 y la vista muestra el mensaje. El enlace «Abrir carpeta en Drive» de Plantillas se actualiza al instante.}
+\paso{teal}{INVOCACIÓN 3 · EVENTO DE VISTA}{Entrar en Reportes o Configuración $\rightarrow$ \cod{obtenerCatalogosSistema()} $\rightarrow$ \cod{GET /api/catalogos}}{En Reportes llena los filtros de carrera y línea de investigación. Al elegir una carrera, las líneas se filtran por \cod{idCarrera}; por ejemplo, Derecho muestra sus 2 líneas. En Configuración, cada catálogo tiene su pestaña con una tabla.}
+
+\textbf{Parámetros}\par
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{44mm} p{24mm} p{20mm} >{\raggedright\arraybackslash}X}
+\hline
+\textbf{Código} & \textbf{Caso de uso} & \textbf{Editable} & \textbf{Uso} \\ \hline
+\cod{CICLO\_VIGENTE} & CU-002/005 & No & Ciclo seleccionado al ingresar (2026-II). \\
+\cod{ID\_CARPETA\_PLANTILLAS} & CU-002 & Sí & Carpeta de Drive con plantillas; enlace en Plantillas. \\
+\cod{ID\_HOJA\_BASE\_DATOS} & CU-005 & Sí & Libro Empiria\_Base\_de\_Datos de los reportes. \\ \hline
+\end{tabularx}
+\par\vspace{2mm}
+Campos de cada parámetro: \cod{codigo}, \cod{valor}, \cod{tipo}, \cod{grupo}, \cod{casoUso}, \cod{descripcion}, \cod{editable}. La respuesta incluye \cod{version}, que sube con cada cambio, y \cod{actualizado}.
+
+\textbf{Catálogos}\par
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{44mm} p{14mm} >{\raggedright\arraybackslash}X}
+\hline
+\textbf{Catálogo} & \textbf{Total} & \textbf{Campos} \\ \hline
+facultades & 5 & id, descripcion, siglas \\
+carreras & 10 & id, descripcion, idFacultad \\
+planesEstudio & 11 & id, descripcion, idCarrera, anio, creditos, vigente \\
+lineasInvestigacion & 21 & id, descripcion, idCarrera \\
+ciclosAcademicos & 3 & id, descripcion, estado, fechaInicio, fechaFin \\
+categoriasDocente, dedicaciones, nivelesRenacyt, tiposActividad & 3/3/8/4 & id, descripcion \\ \hline
+\end{tabularx}
+\newpage
+
+\titulo{03 / DÓNDE ESTÁ CADA COSA}{Archivos para explicar el código}{Si el profesor pregunta por una parte concreta, abrir estos archivos.}
+
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{68mm} >{\raggedright\arraybackslash}X}
+\hline
+\textbf{Archivo} & \textbf{Responsabilidad} \\ \hline
+\multicolumn{2}{l}{\textcolor{teal}{\textbf{Spring Boot · servicios-rest/…/pe/empiria/servicios/}}} \\
+\cod{parametros/ControladorParametros} & \cod{GET /api/parametros}, \cod{GET} y \cod{PUT /\{codigo\}}; token opcional. \\
+\cod{parametros/ServicioParametros} & Valores predeterminados, validación y versión. \\
+\cod{catalogos/ControladorCatalogos} & \cod{GET /api/catalogos} y \cod{/api/catalogos/\{nombre\}}. \\
+\cod{catalogos/ServicioCatalogos} & Datos fijos de los 9 catálogos. \\
+\cod{comun/ManejadorErrores} & Errores JSON uniformes: 400, 401 y 404 con \cod{mensaje}. \\
+\multicolumn{2}{l}{\textcolor{purple}{\textbf{Apps Script · src/servidor/}}} \\
+\cod{IntegracionSpring.gs} & \cod{execGet}/\cod{execPost}/\cod{execPut}, lectura de respuestas y las 3 funciones públicas. \\
+\cod{Código.gs} & \cod{doGet} con la invocación 1. \\
+\multicolumn{2}{l}{\textcolor{blue}{\textbf{Interfaz · src/vistas/ y src/scripts/}}} \\
+\cod{AlpineSistema.html} & Store \cod{sistema}: parámetros, guardado, catálogos y enlace a la carpeta. \\
+\cod{Configuracion.html} & Vista de parámetros editables y pestañas de catálogos. \\
+\cod{Plantillas.html} & Botón «Abrir carpeta en Drive». \\
+\cod{Scripts.html}, \cod{AlpineReportes.html} & Filtros de Reportes alimentados por los catálogos. \\ \hline
+\end{tabularx}
+
+\paso{teal}{VERIFICACIÓN}{Pruebas automáticas}{6 pruebas MockMvc en Spring (\cod{./mvnw test}), 31 pruebas de servidor en Node (4 de integración REST) y 16 escenarios de navegador. Prueba real: \cod{probarServiciosSpring} en el editor devolvió 200 con parámetros y catálogos, y el recorrido en \cod{/dev} funcionó.}
+
+\textbf{Preguntas probables}\par
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{58mm} >{\raggedright\arraybackslash}X}
+\hline
+¿Por qué Codespaces? & Apps Script se ejecuta en servidores de Google y necesita una URL pública HTTPS; el puerto 8080 se publica como \emph{Public}. \\
+¿Dónde se guardan los cambios? & En memoria de Spring: al reiniciar vuelven a los valores predeterminados. Todavía no se pedía base de datos. \\
+¿Qué pasa si Spring está caído? & La app abre igual. Configuración muestra el error y Reportes usa los valores de los datos. \\
+¿Por qué \cod{muteHttpExceptions}? & Para leer el código HTTP y el \cod{mensaje} de error de Spring en vez de recibir una excepción genérica. \\
+¿Por qué CICLO\_VIGENTE es de solo lectura? & El ciclo se cambia desde la gestión de ciclos; cambiarlo aquí desalinearía la app. \\ \hline
+\end{tabularx}
+\newpage
+
+\titulo{04 / INSTRUCCIONES PARA LA CLASE}{Preparación y guion de la demostración}{Unos 10 minutos antes de la clase, verificar que todo responda.}
+
+\paso{amber}{ANTES DE CLASE}{Levantar Spring en Codespaces}{
+1. En GitHub, repositorio Empiria: \textbf{Code $\rightarrow$ Codespaces}, abrir el Codespace de la rama \cod{feat/integracion-spring}.\par
+2. En la terminal: \cod{cd servicios-rest \&\& ./mvnw spring-boot:run}, sin punto final. Esperar a que aparezca «Tomcat started on port 8080».\par
+3. Pestaña \textbf{Ports}: el 8080 debe estar en \textbf{Public}. Abrir \cod{https://<codespace>-8080.app.github.dev/api/parametros} y comprobar que se ve el JSON.\par
+4. Si la URL cambió (Codespace nuevo), ejecutar en el editor de Apps Script \cod{configurarServiciosSpring(\textquotesingle URL\textquotesingle, \textquotesingle\textquotesingle)} con la URL nueva. Si es la misma, no hace falta.\par
+5. Tener a mano el ID de una carpeta real de Drive para la demo: es el texto que va después de \cod{/folders/} en la URL de la carpeta.}
+
+\paso{blue}{DEMOSTRACIÓN · 5 MINUTOS}{Guion sugerido}{
+1. \textbf{Spring:} mostrar en el navegador \cod{/api/parametros} y \cod{/api/catalogos}: «objetos predeterminados, sin base de datos».\par
+2. \textbf{Invocación 1:} abrir la app \cod{/dev}, iniciar sesión y señalar el ciclo 2026-II. En Configuración, el texto «Consultados en doGet al ingresar».\par
+3. \textbf{Invocación 2:} en Configuración, pegar el ID real en \cod{ID\_CARPETA\_PLANTILLAS} y pulsar Guardar: «Guardado en Spring Boot». Ir a Plantillas y pulsar «Abrir carpeta en Drive»: se abre la carpeta.\par
+4. \textbf{Validación:} poner el mismo ID en \cod{ID\_HOJA\_BASE\_DATOS} y guardar: aparece el error 400 de Spring. Opcional: abrir \cod{/api/parametros} y mostrar que \cod{version} subió.\par
+5. \textbf{Invocación 3:} en Configuración, recorrer las pestañas Facultades, Carreras, Planes y Líneas. En Reportes $\rightarrow$ Por carrera y línea $\rightarrow$ Filtros generales, elegir Derecho: solo aparecen sus 2 líneas.\par
+6. \textbf{Código:} si lo piden, abrir \cod{IntegracionSpring.gs} (\cod{execGet}/\cod{execPut}) y \cod{ControladorParametros.java}.}
+
+\paso{purple}{SI ALGO FALLA}{Plan B}{
+\textbf{«El servicio no devolvió JSON»:} el puerto quedó privado; volver a ponerlo en Public.\par
+\textbf{«CONEXION»:} el Codespace se detuvo por inactividad; reabrirlo y ejecutar \cod{./mvnw spring-boot:run}.\par
+\textbf{El ID guardado volvió a DEMO-:} Spring se reinició; guardarlo otra vez.\par
+\textbf{Sin internet en el aula:} en una laptop con el repositorio, ejecutar \cod{./mvnw spring-boot:run} en \cod{servicios-rest} y \cod{npm run preview}. Luego abrir \cod{http://127.0.0.1:4173}, que es la misma app con Google simulado.}
+
+\nota{Guía completa:}{\cod{docs/INTEGRACION\_SPRING.md} en el repositorio.}
+\end{document}
