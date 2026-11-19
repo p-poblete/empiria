@@ -3,9 +3,8 @@ package pe.empiria.servicios.parametros;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- * Parámetro del sistema. El valor siempre viaja como texto para que Apps Script
- * lo trate de forma uniforme; {@code tipo}, {@code minimo} y {@code maximo}
- * indican cómo interpretarlo y validarlo.
+ * Parámetro del sistema. El valor viaja como texto; {@code tipo} indica cómo se
+ * valida y {@code casoUso} qué parte de Empiria lo utiliza.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record Parametro(
@@ -13,13 +12,11 @@ public record Parametro(
     String valor,
     TipoParametro tipo,
     String grupo,
+    String casoUso,
     String descripcion,
-    String unidad,
-    Integer minimo,
-    Integer maximo,
     boolean editable) {
 
   Parametro conValor(String nuevoValor) {
-    return new Parametro(codigo, nuevoValor, tipo, grupo, descripcion, unidad, minimo, maximo, editable);
+    return new Parametro(codigo, nuevoValor, tipo, grupo, casoUso, descripcion, editable);
   }
 }

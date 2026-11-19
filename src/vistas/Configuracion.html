@@ -33,18 +33,17 @@
                         <tr class="border-t border-slate-200 align-top" :data-parametro="p.codigo">
                           <td class="py-3 pr-4 w-1/2">
                             <code class="text-xs font-bold text-slate-900" x-text="p.codigo"></code>
+                            <span class="text-[10px] font-bold text-blue-700 ml-1" x-show="p.casoUso" x-text="p.casoUso"></span>
                             <p class="text-xs text-slate-600 mt-0.5" x-text="p.descripcion"></p>
                           </td>
                           <td class="py-3 pr-4">
                             <template x-if="p.editable">
                               <div class="flex items-center gap-2">
-                                <input class="glass-input rounded-lg px-3 py-1.5 text-sm w-full border border-slate-200" :aria-label="'Valor de ' + p.codigo"
-                                  :type="p.tipo === 'ENTERO' ? 'number' : (p.tipo === 'FECHA' ? 'date' : 'text')"
-                                  :min="p.minimo" :max="p.maximo" maxlength="200"
+                                <input type="text" class="glass-input rounded-lg px-3 py-1.5 text-sm w-full border border-slate-200" :aria-label="'Valor de ' + p.codigo"
+                                  maxlength="200" spellcheck="false"
                                   x-model="$store.sistema.borradores[p.codigo]"
                                   @keydown.enter="$store.sistema.guardar(p.codigo)"
                                   :disabled="$store.sistema.guardando === p.codigo">
-                                <span class="text-xs text-slate-500 whitespace-nowrap" x-show="p.unidad" x-text="p.unidad"></span>
                               </div>
                             </template>
                             <template x-if="!p.editable">

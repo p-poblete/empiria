@@ -14,9 +14,20 @@ Otros recursos: `GET /api/parametros/{codigo}` y `GET /api/catalogos/{nombre}`.
 
 ### Parámetros
 
-`CICLO_VIGENTE`, `FECHA_INICIO_CICLO`, `FECHA_FIN_CICLO`, `MIN_HORAS_DOCENTE`, `MAX_HORAS_DOCENTE`, `MIN_HORAS_INVESTIGACION`, `ID_CARPETA_PLANTILLAS`, `MAX_HOJAS_PLANTILLA`, `DIAS_RECORDATORIO_ENTREGA`, `ID_HOJA_BASE_DATOS`, `MONEDA_REPORTES` y `ZONA_HORARIA`. Cada uno trae `codigo`, `valor`, `tipo` (ENTERO, TEXTO, FECHA o ID_DRIVE), `grupo`, `descripcion`, `unidad`, `minimo`, `maximo` y `editable`.
+Solo se exponen parámetros de Empiria. La carga docente pertenece al sistema de otro grupo.
 
-Spring valida el tipo, el rango, los parámetros de solo lectura y la coherencia entre ellos: MIN ≤ MAX de horas e inicio de ciclo anterior al fin. Cada cambio aceptado incrementa `version`. Los valores se guardan en memoria y vuelven a los predeterminados al reiniciar el servicio. Los IDs de Drive son marcadores `DEMO-…`.
+| Código | Caso de uso | Editable | Uso |
+|---|---|---|---|
+| `CICLO_VIGENTE` | CU-002 y CU-005 | No (se cambia desde la gestión de ciclos) | Ciclo que la app selecciona al ingresar. |
+| `ID_CARPETA_PLANTILLAS` | CU-002 | Sí | Carpeta de Drive con las plantillas de seguimiento del investigador. |
+| `ID_HOJA_BASE_DATOS` | CU-005 | Sí | Libro `Empiria_Base_de_Datos` del que se leen los reportes. |
+
+Cada uno trae `codigo`, `valor`, `tipo` (CICLO o ID_DRIVE), `grupo`, `casoUso`, `descripcion` y `editable`. Spring valida:
+- el formato del ID de Drive;
+- que no se modifique un parámetro de solo lectura;
+- que la carpeta y el libro no compartan ID.
+
+Cada cambio aceptado incrementa `version`. Los valores se guardan en memoria y vuelven a los predeterminados al reiniciar el servicio. Los IDs son marcadores `DEMO-…`.
 
 ### Catálogos
 
@@ -51,7 +62,7 @@ Si el puerto es privado, Google recibe la página de inicio de sesión de GitHub
    ```
    La URL queda en Propiedades del script (`SPRING_BASE_URL`), no en el código.
 4. Ejecuta `probarServiciosSpring` y revisa el registro de ejecución: deben aparecer parámetros y catálogos.
-5. Prueba la implementación `/dev`: inicio (ciclo), **Configuración** (guardar un valor válido y uno inválido) y **Reportes** (filtros de carrera y línea).
+5. Prueba la implementación `/dev`: inicio (ciclo), **Configuración** (guardar un ID válido en `ID_CARPETA_PLANTILLAS` y uno inválido, como `corto`) y **Reportes** (filtros de carrera y línea).
 
 Si Spring no responde, la app abre igual. La vista Configuración muestra el motivo, y Reportes vuelve a los valores presentes en los datos.
 

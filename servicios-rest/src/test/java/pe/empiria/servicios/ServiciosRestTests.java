@@ -31,10 +31,14 @@ class ServiciosRestTests {
   void listaParametrosRequeridos() throws Exception {
     mvc.perform(get("/api/parametros")).andExpect(status().isOk())
         .andExpect(jsonPath("$.version").value(1))
-        .andExpect(jsonPath("$.parametros[?(@.codigo=='MIN_HORAS_DOCENTE')].valor").value("8"))
-        .andExpect(jsonPath("$.parametros[?(@.codigo=='MAX_HORAS_DOCENTE')].valor").value("40"))
-        .andExpect(jsonPath("$.parametros[?(@.codigo=='CICLO_VIGENTE')].valor").value("2026-II"))
-        .andExpect(jsonPath("$.parametros[?(@.codigo=='ID_CARPETA_PLANTILLAS')].tipo").value("ID_DRIVE"));
+        .andExpect(jsonPath("$.parametros.length()").value(3))
+        .andExpect(jsonPath("$.parametros[0].codigo").value("CICLO_VIGENTE"))
+        .andExpect(jsonPath("$.parametros[0].valor").value("2026-II"))
+        .andExpect(jsonPath("$.parametros[0].editable").value(false))
+        .andExpect(jsonPath("$.parametros[1].codigo").value("ID_CARPETA_PLANTILLAS"))
+        .andExpect(jsonPath("$.parametros[1].casoUso").value("CU-002"))
+        .andExpect(jsonPath("$.parametros[2].codigo").value("ID_HOJA_BASE_DATOS"))
+        .andExpect(jsonPath("$.parametros[2].tipo").value("ID_DRIVE"));
   }
 
   @Test
@@ -45,29 +49,26 @@ class ServiciosRestTests {
 
   @Test
   void actualizaParametroConTokenYSubeVersion() throws Exception {
-    actualizar("MAX_HORAS_DOCENTE", "{\"valor\":\" 36 \"}", "secreto-prueba").andExpect(status().isOk())
-        .andExpect(jsonPath("$.valor").value("36"));
+    actualizar("ID_CARPETA_PLANTILLAS", "{\"valor\":\" 1AbC-carpeta_2026 \"}", "secreto-prueba").andExpect(status().isOk())
+        .andExpect(jsonPath("$.valor").value("1AbC-carpeta_2026"));
     mvc.perform(get("/api/parametros")).andExpect(jsonPath("$.version").value(2));
   }
 
   @Test
   void rechazaEscrituraSinToken() throws Exception {
-    actualizar("MAX_HORAS_DOCENTE", "{\"valor\":\"36\"}", null).andExpect(status().isUnauthorized());
-    actualizar("MAX_HORAS_DOCENTE", "{\"valor\":\"36\"}", "otro").andExpect(status().isUnauthorized());
+    actualizar("ID_HOJA_BASE_DATOS", "{\"valor\":\"1AbC-hoja_2026\"}", null).andExpect(status().isUnauthorized());
+    actualizar("ID_HOJA_BASE_DATOS", "{\"valor\":\"1AbC-hoja_2026\"}", "otro").andExpect(status().isUnauthorized());
   }
 
   @Test
-  void validaTipoRangoSoloLecturaYCoherencia() throws Exception {
-    actualizar("MAX_HORAS_DOCENTE", "{\"valor\":\"abc\"}", "secreto-prueba").andExpect(status().isBadRequest());
-    actualizar("MAX_HORAS_DOCENTE", "{\"valor\":\"99\"}", "secreto-prueba").andExpect(status().isBadRequest());
-    actualizar("CICLO_VIGENTE", "{\"valor\":\"2027-I\"}", "secreto-prueba").andExpect(status().isBadRequest());
-    actualizar("FECHA_FIN_CICLO", "{\"valor\":\"2026-02-30\"}", "secreto-prueba").andExpect(status().isBadRequest());
+  void validaFormatoSoloLecturaYDuplicados() throws Exception {
     actualizar("ID_CARPETA_PLANTILLAS", "{\"valor\":\"corto\"}", "secreto-prueba").andExpect(status().isBadRequest());
-    actualizar("MIN_HORAS_DOCENTE", "{\"valor\":\"45\"}", "secreto-prueba").andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.mensaje").value("MIN_HORAS_DOCENTE no puede superar a MAX_HORAS_DOCENTE."));
-    actualizar("MAX_HORAS_DOCENTE", "{}", "secreto-prueba").andExpect(status().isBadRequest());
-    // El rechazo por coherencia no deja el valor inválido guardado.
-    mvc.perform(get("/api/parametros/MIN_HORAS_DOCENTE")).andExpect(jsonPath("$.valor").value("8"));
+    actualizar("ID_CARPETA_PLANTILLAS", "{\"valor\":\"https://drive.google.com/x\"}", "secreto-prueba").andExpect(status().isBadRequest());
+    actualizar("CICLO_VIGENTE", "{\"valor\":\"2027-I\"}", "secreto-prueba").andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.mensaje").value("El parámetro CICLO_VIGENTE es de solo lectura."));
+    actualizar("ID_HOJA_BASE_DATOS", "{\"valor\":\"DEMO-CARPETA-PLANTILLAS-0001\"}", "secreto-prueba").andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.mensaje").value("ID_HOJA_BASE_DATOS no puede tener el mismo ID que ID_CARPETA_PLANTILLAS."));
+    actualizar("ID_HOJA_BASE_DATOS", "{}", "secreto-prueba").andExpect(status().isBadRequest());
     mvc.perform(get("/api/parametros")).andExpect(jsonPath("$.version").value(1));
   }
 
