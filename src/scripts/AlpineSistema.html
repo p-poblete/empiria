@@ -47,6 +47,16 @@
         return valor ? 'Ciclo ' + valor : '';
       },
 
+      // Enlace a la carpeta de plantillas configurada en Spring (ID_CARPETA_PLANTILLAS).
+      get urlCarpetaPlantillas() {
+        var id = this.valor('ID_CARPETA_PLANTILLAS');
+        return /^[A-Za-z0-9_-]{10,100}$/.test(id) ? 'https://drive.google.com/drive/folders/' + id : '';
+      },
+
+      get carpetaEsEjemplo() {
+        return /^DEMO-/.test(this.valor('ID_CARPETA_PLANTILLAS'));
+      },
+
       get grupos() {
         var grupos = [];
         this.parametros.forEach(function(p) {

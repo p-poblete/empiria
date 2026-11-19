@@ -19,7 +19,7 @@ Solo se exponen parámetros de Empiria. La carga docente pertenece al sistema de
 | Código | Caso de uso | Editable | Uso |
 |---|---|---|---|
 | `CICLO_VIGENTE` | CU-002 y CU-005 | No (se cambia desde la gestión de ciclos) | Ciclo que la app selecciona al ingresar. |
-| `ID_CARPETA_PLANTILLAS` | CU-002 | Sí | Carpeta de Drive con las plantillas de seguimiento del investigador. |
+| `ID_CARPETA_PLANTILLAS` | CU-002 | Sí | Carpeta de Drive con las plantillas de seguimiento del investigador. La vista Plantillas arma con este ID el enlace «Abrir carpeta en Drive» y lo actualiza al guardar. |
 | `ID_HOJA_BASE_DATOS` | CU-005 | Sí | Libro `Empiria_Base_de_Datos` del que se leen los reportes. |
 
 Cada uno trae `codigo`, `valor`, `tipo` (CICLO o ID_DRIVE), `grupo`, `casoUso`, `descripcion` y `editable`. Spring valida:

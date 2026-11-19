@@ -7,10 +7,20 @@
               <h2 class="text-lg font-bold text-slate-900">Plantillas Base</h2>
               <p class="text-xs text-slate-600 mt-0.5">Administre las plantillas que se usarán en las actividades de seguimiento.</p>
             </div>
+            <div class="flex items-center gap-2 flex-wrap justify-end">
+            <a id="enlace-carpeta-plantillas" x-show="$store.sistema.urlCarpetaPlantillas" :href="$store.sistema.urlCarpetaPlantillas" target="_blank" rel="noopener noreferrer"
+              :title="'ID_CARPETA_PLANTILLAS: ' + $store.sistema.valor('ID_CARPETA_PLANTILLAS') + ($store.sistema.carpetaEsEjemplo ? ' (valor de ejemplo)' : '')"
+              class="glass-input px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 border border-slate-200 flex items-center gap-2">
+              <i class="fa-brands fa-google-drive text-blue-700" aria-hidden="true"></i>
+              <span>Abrir carpeta en Drive</span>
+              <span x-show="$store.sistema.carpetaEsEjemplo" class="text-[10px] uppercase font-bold text-amber-700">ejemplo</span>
+            </a>
+            <span id="carpeta-plantillas-no-disponible" x-show="!$store.sistema.urlCarpetaPlantillas" class="text-xs text-slate-500">Carpeta de plantillas no configurada (Spring no disponible)</span>
             <button onclick="abrirModalCrearPlantilla()" class="boton-primario font-bold px-5 py-2.5 rounded-xl  flex items-center space-x-2 text-sm transition-all active:scale-95">
               <i class="fa-solid fa-file-circle-plus"></i>
               <span>Nueva plantilla</span>
             </button>
+            </div>
           </div>
 
           <div class="flex items-center gap-2 flex-wrap">
