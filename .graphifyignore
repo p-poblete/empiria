@@ -36,3 +36,13 @@
 # Drupal: componentes distribuidos, no código propio
 **/config/sync/
 **/web/profiles/contrib/
+
+# Reglas base de proyecto (graphifyignore.base)
+**/.agents/
+**/.claude/
+**/.codex/
+**/.gemini/
+**/skills-lock.json
+**/src/generated/
+**/__generated__/
+**/.ipynb_checkpoints/
